@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from functools import partial
 from typing import Any, Callable
 
 import jax
@@ -11,9 +12,11 @@ from .core.system import system
 from .ham.chol import ham_chol
 from .prop.afqmc import init_prop_state
 from .prop.blocks import block_obs
-from .prop.chol_afqmc_ops import chol_afqmc_ops, make_chol_afqmc_ops
+from .prop.chol_afqmc_ops import make_chol_afqmc_ops
 from .prop.types import afqmc_params, prop_state
 from .stat_utils import blocking_analysis_ratio, reject_outliers
+
+print = partial(print, flush=True)
 
 
 def run_afqmc_energy(
@@ -24,7 +27,6 @@ def run_afqmc_energy(
     trial_data: Any,
     meas_ops: meas_ops,
     trial_ops: trial_ops,
-    prop_ops: chol_afqmc_ops,
     block_fn: Callable[..., tuple[prop_state, block_obs]],
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
     """
