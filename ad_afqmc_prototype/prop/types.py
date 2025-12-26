@@ -14,6 +14,7 @@ class prop_state(NamedTuple):
     rng_key: jax.Array
     pop_control_ene_shift: jax.Array
     e_estimate: jax.Array
+    node_encounters: jax.Array
 
 
 @dataclass(frozen=True)

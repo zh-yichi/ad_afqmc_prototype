@@ -29,7 +29,9 @@ def make_run_blocks(block):  # block: state -> (state, obs)
         return state, (obs.scalars["energy"], obs.scalars["weight"])
 
     @partial(jax.jit, static_argnames=("n_blocks",))
-    def run_blocks(state0, *, n_blocks: int):
+    def run_blocks(
+        state0: prop_state, *, n_blocks: int
+    ) -> tuple[prop_state, jax.Array, jax.Array]:
         stateN, (e, w) = jax.lax.scan(one_block, state0, xs=None, length=n_blocks)
         return stateN, e, w
 
@@ -94,13 +96,15 @@ def run_afqmc_energy(
             f"{'':4s}"
             f"{'block':>9s}  "
             f"{'E_blk':>14s}  "
-            f"{'W':>12s}  "
+            f"{'W':>12s}   "
+            f"{'nodes':>10s}  "
             f"{'t[s]':>8s}"
         )
     print(
         f"[eql {0:4d}/{params.n_eql_blocks}]  "
         f"{float(state.e_estimate):14.10f}  "
         f"{float(jnp.sum(state.weights)):12.6e}  "
+        f"{int(state.node_encounters):10d}  "
         f"{0.0:8.1f}"
     )
     chunk = print_every
@@ -111,14 +115,14 @@ def run_afqmc_energy(
         block_w_eq.extend(w_chunk.tolist())
         e_chunk_avg = jnp.mean(e_chunk)
         w_chunk_avg = jnp.mean(w_chunk)
-        if start > 0:
-            elapsed = time.perf_counter() - t0
-            print(
-                f"[eql {start:4d}/{params.n_eql_blocks}]  "
-                f"{float(e_chunk_avg):14.10f}  "
-                f"{float(w_chunk_avg):12.6e}  "
-                f"{elapsed:8.1f}"
-            )
+        elapsed = time.perf_counter() - t0
+        print(
+            f"[eql {start + n:4d}/{params.n_eql_blocks}]  "
+            f"{float(e_chunk_avg):14.10f}  "
+            f"{float(w_chunk_avg):12.6e}  "
+            f"{int(state.node_encounters):10d}  "
+            f"{elapsed:8.1f}"
+        )
     block_e_eq = jnp.asarray(block_e_eq)
     block_w_eq = jnp.asarray(block_w_eq)
 
@@ -130,7 +134,7 @@ def run_afqmc_energy(
     if print_every:
         print(
             f"{'':4s}{'block':>9s}  {'E_avg':>14s}  {'E_err':>10s}  {'E_block':>14s}  "
-            f"{'W':>12s}  {'dt[s/bl]':>9s}  {'t[s]':>8s}"
+            f"{'W':>12s}    {'nodes':>10s}  {'dt[s/bl]':>10s}  {'t[s]':>7s}"
         )
 
     chunk = print_every
@@ -141,24 +145,25 @@ def run_afqmc_energy(
         block_w_s.extend(w_chunk.tolist())
         e_chunk_avg = jnp.mean(e_chunk)
         w_chunk_avg = jnp.mean(w_chunk)
-        if start > 0:
-            elapsed = time.perf_counter() - t0
-            dt_per_block = (time.perf_counter() - t_mark) / float(n)
-            t_mark = time.perf_counter()
-            stats = blocking_analysis_ratio(
-                jnp.asarray(block_e_s), jnp.asarray(block_w_s), print_q=False
-            )
-            mu = float(stats["mu"])
-            se = float(stats["se_star"])
-            print(
-                f"[blk {start:4d}/{params.n_blocks}]  "
-                f"{mu:14.10f}  "
-                f"{se:10.3e}  "
-                f"{float(e_chunk_avg):14.10f}  "
-                f"{float(w_chunk_avg):12.6e}  "
-                f"{dt_per_block:9.3f}  "
-                f"{elapsed:8.1f}"
-            )
+        elapsed = time.perf_counter() - t0
+        dt_per_block = (time.perf_counter() - t_mark) / float(n)
+        t_mark = time.perf_counter()
+        stats = blocking_analysis_ratio(
+            jnp.asarray(block_e_s), jnp.asarray(block_w_s), print_q=False
+        )
+        mu = float(stats["mu"])
+        se = float(stats["se_star"])
+        nodes = int(state.node_encounters)
+        print(
+            f"[blk {start + n:4d}/{params.n_blocks}]  "
+            f"{mu:14.10f}  "
+            f"{se:10.3e}  "
+            f"{float(e_chunk_avg):14.10f}  "
+            f"{float(w_chunk_avg):12.6e}  "
+            f"{nodes:10d}  "
+            f"{dt_per_block:9.3f}  "
+            f"{elapsed:8.1f}"
+        )
     block_e_s = jnp.asarray(block_e_s)
     block_w_s = jnp.asarray(block_w_s)
 

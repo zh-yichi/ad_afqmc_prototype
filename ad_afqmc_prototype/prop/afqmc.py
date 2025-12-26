@@ -61,6 +61,8 @@ def init_prop_state(
 
     pop_shift = e_est
 
+    node_encounters = jnp.asarray(0)
+
     return prop_state(
         walkers=initial_walkers,
         weights=weights,
@@ -68,6 +70,7 @@ def init_prop_state(
         rng_key=key,
         pop_control_ene_shift=pop_shift,
         e_estimate=e_est,
+        node_encounters=node_encounters,
     )
 
 
@@ -128,6 +131,7 @@ def afqmc_step(
     w_cap = float(getattr(params, "weight_cap", 100.0))
 
     imp_ph = jnp.where(imp_ph < w_floor, 0.0, imp_ph)
+    node_encounters_new = state.node_encounters + jnp.sum(imp_ph <= 0.0)
     imp_ph = jnp.where(imp_ph > w_cap, 0.0, imp_ph)
 
     weights_new = state.weights * imp_ph
@@ -144,4 +148,5 @@ def afqmc_step(
         rng_key=key,
         pop_control_ene_shift=pop_shift_new,
         e_estimate=state.e_estimate,
+        node_encounters=node_encounters_new,
     )
