@@ -9,7 +9,7 @@ import jax.numpy as jnp
 from ..core.ops import k_energy, k_force_bias, meas_ops
 from ..core.system import system
 from ..ham.chol import ham_chol
-from ..trial.rhf import _det, rhf_trial
+from ..trial.rhf import overlap_g, overlap_r, overlap_u, rhf_trial
 
 
 def _half_green_from_overlap_matrix(w: jax.Array, ovlp_mat: jax.Array) -> jax.Array:
@@ -17,11 +17,6 @@ def _half_green_from_overlap_matrix(w: jax.Array, ovlp_mat: jax.Array) -> jax.Ar
     green_half = (w @ inv(ovlp_mat)).T
     """
     return jnp.linalg.solve(ovlp_mat.T, w.T)
-
-
-def overlap_r(walker: jax.Array, trial_data: rhf_trial) -> jax.Array:
-    m = trial_data.mo_coeff.conj().T @ walker
-    return _det(m) ** 2
 
 
 def force_bias_kernel_r(
@@ -48,13 +43,6 @@ def energy_kernel_r(
     e2 = 2.0 * jnp.sum(c * c) - exc
 
     return e0 + e1 + e2
-
-
-def overlap_u(walker: tuple[jax.Array, jax.Array], trial_data: rhf_trial) -> jax.Array:
-    wu, wd = walker
-    cu = trial_data.mo_coeff.conj().T @ wu
-    cd = trial_data.mo_coeff.conj().T @ wd
-    return _det(cu) * _det(cd)
 
 
 def force_bias_kernel_u(
@@ -103,15 +91,6 @@ def energy_kernel_u(
     ) / 2.0
 
     return e0 + e1 + e2
-
-
-def overlap_g(walker: jax.Array, trial_data: rhf_trial) -> jax.Array:
-    norb = trial_data.norb
-    cH = trial_data.mo_coeff.conj().T
-    top = cH @ walker[:norb, :]
-    bot = cH @ walker[norb:, :]
-    m = jnp.vstack([top, bot])
-    return _det(m)
 
 
 def force_bias_kernel_g(
