@@ -9,7 +9,7 @@ from jax import lax
 from .. import walkers as wk
 from ..core.ops import k_energy, meas_ops
 from ..core.system import system
-from .types import afqmc_params, prop_ops, prop_state
+from .types import prop_ops, prop_state, qmc_params
 
 
 class block_obs(NamedTuple):
@@ -20,7 +20,7 @@ def block(
     state: prop_state,
     *,
     sys: system,
-    params: afqmc_params,
+    params: qmc_params,
     ham_data: Any,
     trial_data: Any,
     meas_ops: meas_ops,

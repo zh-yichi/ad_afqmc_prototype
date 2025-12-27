@@ -7,7 +7,7 @@ from ad_afqmc_prototype.core.system import system
 from ad_afqmc_prototype.ham.chol import ham_chol
 from ad_afqmc_prototype.prop.afqmc import afqmc_step
 from ad_afqmc_prototype.prop.chol_afqmc_ops import _build_prop_ctx, make_trotter_ops
-from ad_afqmc_prototype.prop.types import afqmc_params, prop_state
+from ad_afqmc_prototype.prop.types import prop_state, qmc_params
 
 
 def _make_dummy_trial_ops():
@@ -49,7 +49,7 @@ def test_weight_update_matches_h0_prop_and_pop_control_update():
     )
     sys = system(norb=norb, nelec=(nocc, nocc), walker_kind="restricted")
 
-    params = afqmc_params(
+    params = qmc_params(
         dt=0.2,
         n_chunks=2,
         n_exp_terms=4,
@@ -104,8 +104,8 @@ def test_step_matches_manual_walker_propagation_and_is_chunk_invariant():
     ham = ham_chol(basis="restricted", h0=jnp.asarray(0.0), h1=h1, chol=chol)
     sys = system(norb=norb, nelec=(nocc, nocc), walker_kind="restricted")
 
-    params1 = afqmc_params(dt=0.1, n_chunks=1, n_exp_terms=6)
-    params2 = afqmc_params(dt=0.1, n_chunks=3, n_exp_terms=6)
+    params1 = qmc_params(dt=0.1, n_chunks=1, n_exp_terms=6)
+    params2 = qmc_params(dt=0.1, n_chunks=3, n_exp_terms=6)
 
     trial_ops_ = _make_dummy_trial_ops()
     meas_ops = _make_dummy_meas_ops()

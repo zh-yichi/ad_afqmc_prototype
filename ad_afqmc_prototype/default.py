@@ -8,7 +8,7 @@ from .ham.chol import ham_chol
 from .meas.rhf import make_rhf_meas_ops
 from .prop.afqmc import make_prop_ops
 from .prop.blocks import block
-from .prop.types import afqmc_params
+from .prop.types import qmc_params
 from .trial.rhf import make_rhf_trial_ops, rhf_trial
 
 
@@ -27,7 +27,7 @@ class Rhf:
         self.trial_ops = make_rhf_trial_ops(sys=sys)
         self.meas_ops = make_rhf_meas_ops(sys=sys)
         self.prop_ops = make_prop_ops(ham_data, sys.walker_kind)
-        self.params = afqmc_params(
+        self.params = qmc_params(
             n_eql_blocks=20, n_blocks=200, seed=np.random.randint(0, int(1e6))
         )
         self.block_fn = block
@@ -35,7 +35,7 @@ class Rhf:
         self.ham_data = ham_data
 
     def kernel(self):
-        return driver.run_afqmc_energy(
+        return driver.run_qmc_energy(
             sys=self.sys,
             params=self.params,
             ham_data=self.ham_data,

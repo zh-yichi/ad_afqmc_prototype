@@ -16,7 +16,7 @@ from .chol_afqmc_ops import (
     make_trotter_ops,
     trotter_ops,
 )
-from .types import afqmc_params, prop_ops, prop_state
+from .types import prop_ops, prop_state, qmc_params
 
 
 def init_prop_state(
@@ -25,10 +25,10 @@ def init_prop_state(
     n_walkers: int,
     seed: int,
     ham_data: ham_chol,
-    trial_ops_: trial_ops,
+    trial_ops: trial_ops,
     trial_data: Any,
     meas_ops: meas_ops,
-    params: afqmc_params,
+    params: qmc_params,
     initial_walkers: Any | None = None,
     initial_e_estimate: jax.Array | None = None,
 ) -> prop_state:
@@ -40,7 +40,7 @@ def init_prop_state(
 
     if initial_walkers is None:
         initial_walkers = init_walkers(
-            sys=sys, rdm1=trial_ops_.get_rdm1(trial_data), n_walkers=n_walkers
+            sys=sys, rdm1=trial_ops.get_rdm1(trial_data), n_walkers=n_walkers
         )
 
     overlaps = wk.apply_chunked(
@@ -82,7 +82,7 @@ def init_prop_state(
 def afqmc_step(
     state: prop_state,
     *,
-    params: afqmc_params,
+    params: qmc_params,
     ham_data: ham_chol,
     trial_data: Any,
     meas_ops: meas_ops,
@@ -161,7 +161,7 @@ def make_prop_ops(ham_data: ham_chol, walker_kind: str) -> prop_ops:
     def step(
         state: prop_state,
         *,
-        params: afqmc_params,
+        params: qmc_params,
         ham_data: Any,
         trial_data: Any,
         meas_ops: meas_ops,
@@ -180,8 +180,10 @@ def make_prop_ops(ham_data: ham_chol, walker_kind: str) -> prop_ops:
         )
 
     def build_prop_ctx(
-        ham_data: Any, trial_data: Any, params: afqmc_params
+        ham_data: Any, trial_data: Any, params: qmc_params
     ) -> chol_afqmc_ctx:
         return _build_prop_ctx(ham_data, trial_data, params.dt)
 
-    return prop_ops(build_prop_ctx=build_prop_ctx, step=step)
+    return prop_ops(
+        init_prop_state=init_prop_state, build_prop_ctx=build_prop_ctx, step=step
+    )

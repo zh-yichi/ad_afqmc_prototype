@@ -6,6 +6,7 @@ from typing import Any, Callable, NamedTuple, Protocol
 import jax
 
 from ..core.ops import meas_ops
+from ..core.system import system
 
 
 class prop_state(NamedTuple):
@@ -19,7 +20,7 @@ class prop_state(NamedTuple):
 
 
 @dataclass(frozen=True)
-class afqmc_params:
+class qmc_params:
     dt: float = 0.005
     n_chunks: int = 1
     n_exp_terms: int = 6
@@ -40,7 +41,7 @@ class step_kernel(Protocol):
         self,
         state: prop_state,
         *,
-        params: afqmc_params,
+        params: qmc_params,
         ham_data: Any,
         trial_data: Any,
         meas_ops: meas_ops,
@@ -49,9 +50,28 @@ class step_kernel(Protocol):
     ) -> prop_state: ...
 
 
+class init_prop_state(Protocol):
+
+    def __call__(
+        self,
+        *,
+        sys: system,
+        n_walkers: int,
+        seed: int,
+        ham_data: Any,
+        trial_ops: Any,
+        trial_data: Any,
+        meas_ops: meas_ops,
+        params: qmc_params,
+        initial_walkers: Any | None = None,
+        initial_e_estimate: jax.Array | None = None,
+    ) -> prop_state: ...
+
+
 @dataclass(frozen=True)
 class prop_ops:
+    init_prop_state: init_prop_state
     build_prop_ctx: Callable[
-        [Any, Any, afqmc_params], Any
+        [Any, Any, qmc_params], Any
     ]  # (ham_data, trial_data, params) -> prop_ctx
     step: step_kernel

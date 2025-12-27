@@ -9,10 +9,8 @@ import jax.numpy as jnp
 
 from .core.ops import meas_ops, trial_ops
 from .core.system import system
-from .ham.chol import ham_chol
-from .prop.afqmc import init_prop_state
 from .prop.blocks import block_obs
-from .prop.types import afqmc_params, prop_ops, prop_state
+from .prop.types import prop_ops, prop_state, qmc_params
 from .stat_utils import blocking_analysis_ratio, reject_outliers
 
 print = partial(print, flush=True)
@@ -37,11 +35,11 @@ def make_run_blocks(block):  # block: state -> (state, obs)
     return run_blocks
 
 
-def run_afqmc_energy(
+def run_qmc_energy(
     *,
     sys: system,
-    params: afqmc_params,
-    ham_data: ham_chol,
+    params: qmc_params,
+    ham_data: Any,
     trial_data: Any,
     meas_ops: meas_ops,
     trial_ops: trial_ops,
@@ -57,12 +55,12 @@ def run_afqmc_energy(
     # build ctx
     prop_ctx = prop_ops.build_prop_ctx(ham_data, trial_ops.get_rdm1(trial_data), params)
     meas_ctx = meas_ops.build_meas_ctx(ham_data, trial_data)
-    state = init_prop_state(
+    state = prop_ops.init_prop_state(
         sys=sys,
         n_walkers=params.n_walkers,
         seed=params.seed,
         ham_data=ham_data,
-        trial_ops_=trial_ops,
+        trial_ops=trial_ops,
         trial_data=trial_data,
         meas_ops=meas_ops,
         params=params,
