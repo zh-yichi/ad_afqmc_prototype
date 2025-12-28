@@ -90,8 +90,7 @@ def block(
 
     alpha = jnp.asarray(params.shift_ema, dtype=jnp.result_type(e_block))
     state = state._replace(
-        pop_control_ene_shift=(1.0 - alpha) * state.pop_control_ene_shift
-        + alpha * e_block
+        e_estimate=(1.0 - alpha) * state.e_estimate + alpha * e_block
     )
 
     key, subkey = jax.random.split(state.rng_key)
