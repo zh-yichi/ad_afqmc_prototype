@@ -11,7 +11,14 @@ from ..core.ops import MeasOps, k_energy, k_force_bias
 from ..core.system import System
 from ..ham.chol import HamChol
 from ..ham.hubbard import HamHubbard
-from ..trial.ghf import GhfTrial, overlap_g, overlap_r, overlap_u
+from ..trial.ghf import (
+    GhfTrial,
+    calc_green_g,
+    calc_green_u,
+    overlap_g,
+    overlap_r,
+    overlap_u,
+)
 
 # ---------------------
 # chol
@@ -225,35 +232,19 @@ def make_ghf_meas_ops_chol(sys: System) -> MeasOps:
 # ---------------------
 
 
-def _full_green_unrestricted(
-    wu: jax.Array, wd: jax.Array, trial_data: GhfTrial
-) -> jax.Array:
-    """
-    Full Green's function (2n,2n) for unrestricted walkers.
-    """
-    norb = trial_data.norb
-    nup = wu.shape[1]
-    ndn = wd.shape[1]
-    dtype = wu.dtype
+def _energy_from_full_green(G: jax.Array, ham_data: HamHubbard, norb: int) -> jax.Array:
+    h1 = ham_data.h1
+    u = ham_data.u
 
-    z_up = jnp.zeros((norb, ndn), dtype=dtype)
-    z_dn = jnp.zeros((norb, nup), dtype=dtype)
+    e1 = jnp.sum(G[:norb, :norb] * h1) + jnp.sum(G[norb:, norb:] * h1)
 
-    w_top = jnp.concatenate([wu, z_up], axis=1)  # (n, ne)
-    w_bot = jnp.concatenate([z_dn, wd], axis=1)  # (n, ne)
-    w_so = jnp.concatenate([w_top, w_bot], axis=0)  # (2n, ne)
+    g_uu = jnp.diagonal(G[:norb, :norb])
+    g_dd = jnp.diagonal(G[norb:, norb:])
+    g_ud = jnp.diagonal(G[:norb, norb:])
+    g_du = jnp.diagonal(G[norb:, :norb])
 
-    c_occ_H = trial_data.mo_coeff.conj().T  # (ne,2n)
-    inv = jnp.linalg.inv(c_occ_H @ w_so)  # (ne,ne)
-    g = (w_so @ inv @ c_occ_H).T  # (2n,2n)
-    return g
-
-
-def _full_green_generalized(w: jax.Array, trial_data: GhfTrial) -> jax.Array:
-    c_occ_H = trial_data.mo_coeff.conj().T
-    inv = jnp.linalg.inv(c_occ_H @ w)
-    g = (w @ inv @ c_occ_H).T
-    return g
+    e2 = u * (jnp.sum(g_uu * g_dd) - jnp.sum(g_ud * g_du))
+    return e1 + e2
 
 
 def energy_kernel_hubbard_u(
@@ -262,21 +253,9 @@ def energy_kernel_hubbard_u(
     meas_ctx: Any,
     trial_data: GhfTrial,
 ) -> jax.Array:
-    wu, wd = walker
-    g = _full_green_unrestricted(wu, wd, trial_data)
+    g = calc_green_u(walker, trial_data)
     norb = trial_data.norb
-    h1 = ham_data.h1
-    u = ham_data.u
-
-    e1 = jnp.sum(g[:norb, :norb] * h1) + jnp.sum(g[norb:, norb:] * h1)
-
-    g_uu = g[:norb, :norb].diagonal()
-    g_dd = g[norb:, norb:].diagonal()
-    g_ud = g[:norb, norb:].diagonal()
-    g_du = g[norb:, :norb].diagonal()
-    e2 = u * (jnp.sum(g_uu * g_dd) - jnp.sum(g_ud * g_du))
-
-    return e1 + e2
+    return _energy_from_full_green(g, ham_data, norb)
 
 
 def energy_kernel_hubbard_g(
@@ -285,20 +264,9 @@ def energy_kernel_hubbard_g(
     meas_ctx: Any,
     trial_data: GhfTrial,
 ) -> jax.Array:
-    g = _full_green_generalized(walker, trial_data)
+    g = calc_green_g(walker, trial_data)
     norb = trial_data.norb
-    h1 = ham_data.h1
-    u = ham_data.u
-
-    e1 = jnp.sum(g[:norb, :norb] * h1) + jnp.sum(g[norb:, norb:] * h1)
-
-    g_uu = g[:norb, :norb].diagonal()
-    g_dd = g[norb:, norb:].diagonal()
-    g_ud = g[:norb, norb:].diagonal()
-    g_du = g[norb:, :norb].diagonal()
-    e2 = u * (jnp.sum(g_uu * g_dd) - jnp.sum(g_ud * g_du))
-
-    return e1 + e2
+    return _energy_from_full_green(g, ham_data, norb)
 
 
 def make_ghf_meas_ops_hubbard(sys: System) -> MeasOps:
