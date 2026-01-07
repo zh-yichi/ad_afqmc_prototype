@@ -34,8 +34,8 @@ def _greenp_from_green(green: jax.Array) -> jax.Array:
 @dataclass(frozen=True)
 class CisdMeasCfg:
     memory_mode: str = "low"  # or Literal["low","high"]
-    mixed_real_dtype: jnp.dtype = jnp.float32
-    mixed_complex_dtype: jnp.dtype = jnp.complex64
+    mixed_real_dtype: jnp.dtype = jnp.float64
+    mixed_complex_dtype: jnp.dtype = jnp.complex128
     mixed_real_dtype_testing: jnp.dtype = jnp.float32
     mixed_complex_dtype_testing: jnp.dtype = jnp.complex64
 
@@ -293,9 +293,7 @@ def energy_kernel_r(
 
     ci1g1 = ci1 @ green_occ.T  # (nocc, nocc)
     e2_1_3_1 = jnp.einsum("gpq,gqr,rp->", lg1, lg1, ci1g1, optimize="optimal")
-    # lci1g_mat = jnp.einsum("gip,qi->gpq", meas_ctx.lci1, green, optimize="optimal")
-    tmp = jnp.einsum("qi,git->gqt", green, chol[:, :, nocc:], optimize="optimal")
-    lci1g_mat = jnp.einsum("gqt,pt->gpq", tmp, ci1, optimize="optimal")
+    lci1g_mat = jnp.einsum("gip,qi->gpq", meas_ctx.lci1, green, optimize="optimal")
     e2_1_3_2 = -jnp.einsum("gpq,gqp->", lci1g_mat, lg1, optimize="optimal")
     e2_1_3 = e2_1_3_1 + e2_1_3_2
 
