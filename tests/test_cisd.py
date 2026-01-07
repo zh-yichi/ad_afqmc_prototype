@@ -80,15 +80,7 @@ def _make_cisd_trial(
 
     # Use high precision for the "testing" dtypes so the manual kernel is not
     # artificially noisy from float32/complex64 paths.
-    return CisdTrial(
-        ci1=ci1,
-        ci2=ci2,
-        memory_mode=memory_mode,
-        mixed_real_dtype=jnp.float64,
-        mixed_complex_dtype=jnp.complex128,
-        mixed_real_dtype_testing=jnp.float64,
-        mixed_complex_dtype_testing=jnp.complex128,
-    )
+    return CisdTrial(ci1=ci1, ci2=ci2)
 
 
 @pytest.mark.parametrize(
@@ -110,7 +102,9 @@ def test_auto_force_bias_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
     trial = _make_cisd_trial(k_trial, norb=norb, nocc=nocc, memory_mode=memory_mode)
 
     t_ops = make_cisd_trial_ops(sys)
-    meas_manual = make_cisd_meas_ops(sys)
+    meas_manual = make_cisd_meas_ops(
+        sys, memory_mode=memory_mode, mixed_precision=False, testing=True
+    )
     meas_auto = make_auto_meas_ops(sys, t_ops, eps=1.0e-4)
 
     ctx_manual = meas_manual.build_meas_ctx(ham, trial)
@@ -151,7 +145,9 @@ def test_auto_energy_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
     trial = _make_cisd_trial(k_trial, norb=norb, nocc=nocc, memory_mode=memory_mode)
 
     t_ops = make_cisd_trial_ops(sys)
-    meas_manual = make_cisd_meas_ops(sys)
+    meas_manual = make_cisd_meas_ops(
+        sys, memory_mode=memory_mode, mixed_precision=False, testing=True
+    )
     meas_auto = make_auto_meas_ops(sys, t_ops, eps=1.0e-4)
 
     ctx_manual = meas_manual.build_meas_ctx(ham, trial)

@@ -15,51 +15,6 @@ from ..trial.cisd import overlap_r as cisd_overlap_r
 from ..trial.cisd import slice_trial_level
 
 
-def make_level_pack(
-    *,
-    ham_data: HamChol,
-    trial_data: CisdTrial,
-    level: LevelSpec,
-    orb_fullchol_ctx: CisdMeasCtx | None = None,
-    orb_fullchol_ham: HamChol | None = None,
-) -> LevelPack:
-    if level.nvir_keep is None:
-        trial_orb = trial_data
-        norb_keep = None
-    else:
-        trial_orb = slice_trial_level(trial_data, level.nvir_keep)
-        norb_keep = int(trial_data.nocc) + int(level.nvir_keep)
-
-    if orb_fullchol_ham is None:
-        ham_orb_fullchol = slice_ham_level(
-            ham_data, norb_keep=norb_keep, nchol_keep=None
-        )
-    else:
-        ham_orb_fullchol = orb_fullchol_ham
-
-    if orb_fullchol_ctx is None:
-        ctx_orb_fullchol = build_meas_ctx(ham_orb_fullchol, trial_orb)
-    else:
-        ctx_orb_fullchol = orb_fullchol_ctx
-
-    if level.nchol_keep is None:
-        ham_lvl = ham_orb_fullchol
-        ctx_lvl = ctx_orb_fullchol
-    else:
-        ham_lvl = slice_ham_level(
-            ham_orb_fullchol, norb_keep=None, nchol_keep=level.nchol_keep
-        )
-        ctx_lvl = slice_meas_ctx_chol(ctx_orb_fullchol, level.nchol_keep)
-
-    return LevelPack(
-        level=level,
-        ham_data=ham_lvl,
-        trial_data=trial_orb,
-        meas_ctx=ctx_lvl,
-        norb_keep=norb_keep,
-    )
-
-
 def _greens_restricted(walker: jax.Array, nocc: int) -> jax.Array:
     wocc = walker[:nocc, :]  # (nocc, nocc)
     return jnp.linalg.solve(wocc.T, walker.T)  # (nocc, norb)
@@ -76,6 +31,15 @@ def _greenp_from_green(green: jax.Array) -> jax.Array:
     return jnp.vstack((green_occ, -jnp.eye(nvir, dtype=green.dtype)))
 
 
+@dataclass(frozen=True)
+class CisdMeasCfg:
+    memory_mode: str = "low"  # or Literal["low","high"]
+    mixed_real_dtype: jnp.dtype = jnp.float32
+    mixed_complex_dtype: jnp.dtype = jnp.complex64
+    mixed_real_dtype_testing: jnp.dtype = jnp.float32
+    mixed_complex_dtype_testing: jnp.dtype = jnp.complex64
+
+
 @tree_util.register_pytree_node_class
 @dataclass(frozen=True)
 class CisdMeasCtx:
@@ -83,14 +47,18 @@ class CisdMeasCtx:
     chol: jax.Array  # (n_chol, norb, norb)
     rot_chol: jax.Array  # (n_chol, nocc, norb)   = chol[:, :nocc, :]
     lci1: jax.Array  # (n_chol, norb, nocc)       = einsum(chol[:, :, nocc:], ci1)
+    cfg: CisdMeasCfg  # static
 
     def tree_flatten(self):
-        return (self.h1, self.chol, self.rot_chol, self.lci1), None
+        children = (self.h1, self.chol, self.rot_chol, self.lci1)
+        aux = (self.cfg,)
+        return children, aux
 
     @classmethod
     def tree_unflatten(cls, aux, children):
+        (cfg,) = aux
         h1, chol, rot_chol, lci1 = children
-        return cls(h1=h1, chol=chol, rot_chol=rot_chol, lci1=lci1)
+        return cls(h1=h1, chol=chol, rot_chol=rot_chol, lci1=lci1, cfg=cfg)
 
 
 def slice_meas_ctx_chol(ctx: CisdMeasCtx, nchol_keep: int | None) -> CisdMeasCtx:
@@ -101,10 +69,13 @@ def slice_meas_ctx_chol(ctx: CisdMeasCtx, nchol_keep: int | None) -> CisdMeasCtx
         chol=ctx.chol[:nchol_keep],
         rot_chol=ctx.rot_chol[:nchol_keep],
         lci1=ctx.lci1[:nchol_keep],
+        cfg=ctx.cfg,
     )
 
 
-def build_meas_ctx(ham_data: HamChol, trial_data: CisdTrial) -> CisdMeasCtx:
+def build_meas_ctx(
+    ham_data: HamChol, trial_data: CisdTrial, cfg: CisdMeasCfg = CisdMeasCfg()
+) -> CisdMeasCtx:
     if ham_data.basis != "restricted":
         raise ValueError(
             "CISD MeasOps currently assumes HamChol.basis == 'restricted'."
@@ -124,7 +95,61 @@ def build_meas_ctx(ham_data: HamChol, trial_data: CisdTrial) -> CisdMeasCtx:
         optimize="optimal",
     )  # (n_chol, norb, nocc)
 
-    return CisdMeasCtx(h1=h1, chol=chol, rot_chol=rot_chol, lci1=lci1)
+    return CisdMeasCtx(h1=h1, chol=chol, rot_chol=rot_chol, lci1=lci1, cfg=cfg)
+
+
+def make_level_pack(
+    *,
+    ham_data: HamChol,
+    trial_data: CisdTrial,
+    level: LevelSpec,
+    orb_fullchol_ctx: CisdMeasCtx | None = None,
+    orb_fullchol_ham: HamChol | None = None,
+    memory_mode: str = "low",
+    mixed_precision: bool = True,
+) -> LevelPack:
+    cfg = CisdMeasCfg(
+        memory_mode=memory_mode,
+        mixed_real_dtype=jnp.float32 if mixed_precision else jnp.float64,
+        mixed_complex_dtype=jnp.complex64 if mixed_precision else jnp.complex128,
+        mixed_real_dtype_testing=jnp.float32,
+        mixed_complex_dtype_testing=jnp.complex64,
+    )
+    if level.nvir_keep is None:
+        trial_orb = trial_data
+        norb_keep = None
+    else:
+        trial_orb = slice_trial_level(trial_data, level.nvir_keep)
+        norb_keep = int(trial_data.nocc) + int(level.nvir_keep)
+
+    if orb_fullchol_ham is None:
+        ham_orb_fullchol = slice_ham_level(
+            ham_data, norb_keep=norb_keep, nchol_keep=None
+        )
+    else:
+        ham_orb_fullchol = orb_fullchol_ham
+
+    if orb_fullchol_ctx is None:
+        ctx_orb_fullchol = build_meas_ctx(ham_orb_fullchol, trial_orb, cfg=cfg)
+    else:
+        ctx_orb_fullchol = orb_fullchol_ctx
+
+    if level.nchol_keep is None:
+        ham_lvl = ham_orb_fullchol
+        ctx_lvl = ctx_orb_fullchol
+    else:
+        ham_lvl = slice_ham_level(
+            ham_orb_fullchol, norb_keep=None, nchol_keep=level.nchol_keep
+        )
+        ctx_lvl = slice_meas_ctx_chol(ctx_orb_fullchol, level.nchol_keep)
+
+    return LevelPack(
+        level=level,
+        ham_data=ham_lvl,
+        trial_data=trial_orb,
+        meas_ctx=ctx_lvl,
+        norb_keep=norb_keep,
+    )
 
 
 def force_bias_kernel_r(
@@ -151,8 +176,8 @@ def force_bias_kernel_r(
     fb_1_1 = 4.0 * ci1g * lg
     fb_1_2 = -2.0 * jnp.einsum(
         "gij,ij->g",
-        chol.astype(trial_data.mixed_real_dtype),
-        gci1gp.astype(trial_data.mixed_complex_dtype),
+        chol.astype(meas_ctx.cfg.mixed_real_dtype),
+        gci1gp.astype(meas_ctx.cfg.mixed_complex_dtype),
         optimize="optimal",
     )
     fb_1 = fb_1_1 + fb_1_2
@@ -160,14 +185,14 @@ def force_bias_kernel_r(
     # doubles
     ci2g_c = jnp.einsum(
         "ptqu,pt->qu",
-        ci2.astype(trial_data.mixed_real_dtype),
-        green_occ.astype(trial_data.mixed_complex_dtype),
+        ci2.astype(meas_ctx.cfg.mixed_real_dtype),
+        green_occ.astype(meas_ctx.cfg.mixed_complex_dtype),
         optimize="optimal",
     )  # (nocc, nvir)
     ci2g_e = jnp.einsum(
         "ptqu,pu->qt",
-        ci2.astype(trial_data.mixed_real_dtype),
-        green_occ.astype(trial_data.mixed_complex_dtype),
+        ci2.astype(meas_ctx.cfg.mixed_real_dtype),
+        green_occ.astype(meas_ctx.cfg.mixed_complex_dtype),
         optimize="optimal",
     )  # (nocc, nvir)
 
@@ -181,8 +206,8 @@ def force_bias_kernel_r(
     fb_2_1 = lg * gci2g
     fb_2_2 = jnp.einsum(
         "gij,ij->g",
-        chol.astype(trial_data.mixed_real_dtype),
-        cisd_green.astype(trial_data.mixed_complex_dtype),
+        chol.astype(meas_ctx.cfg.mixed_real_dtype),
+        cisd_green.astype(meas_ctx.cfg.mixed_complex_dtype),
         optimize="optimal",
     )
     fb_2 = fb_2_1 + fb_2_2
@@ -223,14 +248,14 @@ def energy_kernel_r(
     # doubles
     ci2g_c = jnp.einsum(
         "ptqu,pt->qu",
-        ci2.astype(trial_data.mixed_real_dtype),
-        green_occ.astype(trial_data.mixed_complex_dtype),
+        ci2.astype(meas_ctx.cfg.mixed_real_dtype),
+        green_occ.astype(meas_ctx.cfg.mixed_complex_dtype),
         optimize="optimal",
     )
     ci2g_e = jnp.einsum(
         "ptqu,pu->qt",
-        ci2.astype(trial_data.mixed_real_dtype),
-        green_occ.astype(trial_data.mixed_complex_dtype),
+        ci2.astype(meas_ctx.cfg.mixed_real_dtype),
+        green_occ.astype(meas_ctx.cfg.mixed_complex_dtype),
         optimize="optimal",
     )
     ci2_green_c = (greenp @ ci2g_c.T) @ green
@@ -260,8 +285,8 @@ def energy_kernel_r(
     e2_1_1 = 2.0 * e2_0 * ci1g
     lci1g = jnp.einsum(
         "gij,ij->g",
-        chol.astype(trial_data.mixed_real_dtype),
-        ci1_green.astype(trial_data.mixed_complex_dtype),
+        chol.astype(meas_ctx.cfg.mixed_real_dtype),
+        ci1_green.astype(meas_ctx.cfg.mixed_complex_dtype),
         optimize="optimal",
     )
     e2_1_2 = -2.0 * (lci1g @ lg)
@@ -280,15 +305,16 @@ def energy_kernel_r(
     e2_2_1 = e2_0 * gci2g
     lci2g = jnp.einsum(
         "gij,ij->g",
-        chol.astype(trial_data.mixed_real_dtype),
-        ci2_green.astype(trial_data.mixed_complex_dtype),
+        chol.astype(meas_ctx.cfg.mixed_real_dtype),
+        ci2_green.astype(meas_ctx.cfg.mixed_complex_dtype),
         optimize="optimal",
     )
     e2_2_2_1 = -(lci2g @ lg)
 
-    if trial_data.memory_mode == "low":
+    if meas_ctx.cfg.memory_mode == "low":
         dtype_acc = jnp.result_type(walker, ci1, ci2)
         zero = jnp.array(0.0, dtype=dtype_acc)
+        ci2_t = ci2.astype(meas_ctx.cfg.mixed_real_dtype)
 
         def scan_over_chol(carry, x):
             e22_acc, e23_acc = carry
@@ -304,20 +330,20 @@ def energy_kernel_r(
             )
 
             glgp_i = jnp.einsum("pi,it->pt", gl_i, greenp, optimize="optimal").astype(
-                trial_data.mixed_complex_dtype_testing
+                meas_ctx.cfg.mixed_complex_dtype_testing
             )
             l2ci2_1 = jnp.einsum(
                 "pt,qu,ptqu->",
                 glgp_i,
                 glgp_i,
-                ci2.astype(trial_data.mixed_real_dtype_testing),
+                ci2_t,
                 optimize="optimal",
             )
             l2ci2_2 = jnp.einsum(
                 "pu,qt,ptqu->",
                 glgp_i,
                 glgp_i,
-                ci2.astype(trial_data.mixed_real_dtype_testing),
+                ci2_t,
                 optimize="optimal",
             )
             e23_acc = e23_acc + (2.0 * l2ci2_1 - l2ci2_2)
@@ -329,27 +355,27 @@ def energy_kernel_r(
         lci2_green = jnp.einsum("gpi,ji->gpj", rot_chol, ci2_green, optimize="optimal")
         gl = jnp.einsum(
             "pj,gji->gpi",
-            green.astype(trial_data.mixed_complex_dtype),
-            chol.astype(trial_data.mixed_real_dtype),
+            green.astype(meas_ctx.cfg.mixed_complex_dtype),
+            chol.astype(meas_ctx.cfg.mixed_real_dtype),
             optimize="optimal",
         )
         e2_2_2_2 = 0.5 * jnp.einsum("gpi,gpi->", gl, lci2_green, optimize="optimal")
 
         glgp = jnp.einsum("gpi,it->gpt", gl, greenp, optimize="optimal").astype(
-            trial_data.mixed_complex_dtype_testing
+            meas_ctx.cfg.mixed_complex_dtype_testing
         )
         l2ci2_1 = jnp.einsum(
             "gpt,gqu,ptqu->g",
             glgp,
             glgp,
-            ci2.astype(trial_data.mixed_real_dtype_testing),
+            ci2.astype(meas_ctx.cfg.mixed_real_dtype_testing),
             optimize="optimal",
         )
         l2ci2_2 = jnp.einsum(
             "gpu,gqt,ptqu->g",
             glgp,
             glgp,
-            ci2.astype(trial_data.mixed_real_dtype_testing),
+            ci2.astype(meas_ctx.cfg.mixed_real_dtype_testing),
             optimize="optimal",
         )
         e2_2_3 = 2.0 * l2ci2_1.sum() - l2ci2_2.sum()
@@ -363,14 +389,29 @@ def energy_kernel_r(
     return (e1 + e2) / overlap + e0
 
 
-def make_cisd_meas_ops(sys: System) -> MeasOps:
+def make_cisd_meas_ops(
+    sys: System,
+    memory_mode: str = "low",
+    mixed_precision: bool = True,
+    testing: bool = False,
+) -> MeasOps:
     if sys.walker_kind.lower() != "restricted":
         raise ValueError(
             f"CISD MeasOps currently supports only restricted walkers, got: {sys.walker_kind}"
         )
 
+    cfg = CisdMeasCfg(
+        memory_mode=memory_mode,
+        mixed_real_dtype=jnp.float32 if mixed_precision else jnp.float64,
+        mixed_complex_dtype=jnp.complex64 if mixed_precision else jnp.complex128,
+        mixed_real_dtype_testing=jnp.float64 if testing else jnp.float32,
+        mixed_complex_dtype_testing=jnp.complex128 if testing else jnp.complex64,
+    )
+
     return MeasOps(
         overlap=cisd_overlap_r,
-        build_meas_ctx=build_meas_ctx,
+        build_meas_ctx=lambda ham_data, trial_data: build_meas_ctx(
+            ham_data, trial_data, cfg
+        ),
         kernels={k_force_bias: force_bias_kernel_r, k_energy: energy_kernel_r},
     )

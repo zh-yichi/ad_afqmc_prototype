@@ -26,19 +26,6 @@ class CisdTrial:
     ci1: jax.Array
     ci2: jax.Array
 
-    # mixed-precision knobs (kept as static PyTree aux data)
-    memory_mode: Literal["low", "high"] = "low"
-    mixed_real_dtype: Any = jnp.float64
-    mixed_complex_dtype: Any = jnp.complex128
-    mixed_real_dtype_testing: Any = jnp.float32
-    mixed_complex_dtype_testing: Any = jnp.complex64
-
-    def __post_init__(self):
-        if self.memory_mode not in ("low", "high"):
-            raise ValueError(
-                f"memory_mode must be one of ['low', 'high'], got {self.memory_mode}"
-            )
-
     @property
     def nocc(self) -> int:
         return int(self.ci1.shape[0])
@@ -53,33 +40,15 @@ class CisdTrial:
 
     def tree_flatten(self):
         children = (self.ci1, self.ci2)
-        aux = (
-            self.memory_mode,
-            self.mixed_real_dtype,
-            self.mixed_complex_dtype,
-            self.mixed_real_dtype_testing,
-            self.mixed_complex_dtype_testing,
-        )
+        aux = None
         return children, aux
 
     @classmethod
     def tree_unflatten(cls, aux, children):
         (ci1, ci2) = children
-        (
-            memory_mode,
-            mixed_real_dtype,
-            mixed_complex_dtype,
-            mixed_real_dtype_testing,
-            mixed_complex_dtype_testing,
-        ) = aux
         return cls(
             ci1=ci1,
             ci2=ci2,
-            memory_mode=memory_mode,
-            mixed_real_dtype=mixed_real_dtype,
-            mixed_complex_dtype=mixed_complex_dtype,
-            mixed_real_dtype_testing=mixed_real_dtype_testing,
-            mixed_complex_dtype_testing=mixed_complex_dtype_testing,
         )
 
 
