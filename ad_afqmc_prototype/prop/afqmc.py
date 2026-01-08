@@ -49,10 +49,11 @@ def init_prop_state(
     else:
         meas_ctx = meas_ops.build_meas_ctx(ham_data, trial_data)
         e_kernel = meas_ops.require_kernel(k_energy)
+        walker_0 = wk.take_walkers(initial_walkers, jnp.array([0]))
         e_samples = jnp.real(
-            wk.vmap_chunked(
-                e_kernel, n_chunks=params.n_chunks, in_axes=(0, None, None, None)
-            )(initial_walkers, ham_data, meas_ctx, trial_data)
+            wk.vmap_chunked(e_kernel, n_chunks=1, in_axes=(0, None, None, None))(
+                walker_0, ham_data, meas_ctx, trial_data
+            )
         )
         e_est = jnp.mean(e_samples)
 
