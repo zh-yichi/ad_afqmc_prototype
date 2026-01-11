@@ -43,30 +43,26 @@ class CisdMeasCfg:
 @tree_util.register_pytree_node_class
 @dataclass(frozen=True)
 class CisdMeasCtx:
-    h1: jax.Array  # (norb, norb)
-    chol: jax.Array  # (n_chol, norb, norb)
-    rot_chol: jax.Array  # (n_chol, nocc, norb)   = chol[:, :nocc, :]
-    lci1: jax.Array  # (n_chol, norb, nocc)       = einsum(chol[:, :, nocc:], ci1)
+    rot_chol: jax.Array  # (n_chol, nocc, norb)
+    lci1: jax.Array  # (n_chol, norb, nocc)
     cfg: CisdMeasCfg  # static
 
     def tree_flatten(self):
-        children = (self.h1, self.chol, self.rot_chol, self.lci1)
+        children = (self.rot_chol, self.lci1)
         aux = (self.cfg,)
         return children, aux
 
     @classmethod
     def tree_unflatten(cls, aux, children):
         (cfg,) = aux
-        h1, chol, rot_chol, lci1 = children
-        return cls(h1=h1, chol=chol, rot_chol=rot_chol, lci1=lci1, cfg=cfg)
+        rot_chol, lci1 = children
+        return cls(rot_chol=rot_chol, lci1=lci1, cfg=cfg)
 
 
 def slice_meas_ctx_chol(ctx: CisdMeasCtx, nchol_keep: int | None) -> CisdMeasCtx:
     if nchol_keep is None:
         return ctx
     return CisdMeasCtx(
-        h1=ctx.h1,
-        chol=ctx.chol[:nchol_keep],
         rot_chol=ctx.rot_chol[:nchol_keep],
         lci1=ctx.lci1[:nchol_keep],
         cfg=ctx.cfg,
@@ -81,8 +77,6 @@ def build_meas_ctx(
             "CISD MeasOps currently assumes HamChol.basis == 'restricted'."
         )
 
-    h1 = ham_data.h1
-
     chol = ham_data.chol  # (n_chol, norb, norb)
     nocc = trial_data.nocc
 
@@ -95,7 +89,7 @@ def build_meas_ctx(
         optimize="optimal",
     )  # (n_chol, norb, nocc)
 
-    return CisdMeasCtx(h1=h1, chol=chol, rot_chol=rot_chol, lci1=lci1, cfg=cfg)
+    return CisdMeasCtx(rot_chol=rot_chol, lci1=lci1, cfg=cfg)
 
 
 def make_level_pack(
@@ -162,7 +156,7 @@ def force_bias_kernel_r(
     green_occ = green[:, nocc:]  # (nocc, nvir)
     greenp = _greenp_from_green(green)  # (norb, nvir)
 
-    chol = meas_ctx.chol
+    chol = ham_data.chol
     rot_chol = meas_ctx.rot_chol
 
     lg = jnp.einsum("gpj,pj->g", rot_chol, green, optimize="optimal")
@@ -226,8 +220,8 @@ def energy_kernel_r(
     green_occ = green[:, nocc:]  # (nocc, nvir)
     greenp = _greenp_from_green(green)  # (norb, nvir)
 
-    h1 = meas_ctx.h1
-    chol = meas_ctx.chol
+    h1 = ham_data.h1
+    chol = ham_data.chol
     rot_chol = meas_ctx.rot_chol
 
     # 0 body
