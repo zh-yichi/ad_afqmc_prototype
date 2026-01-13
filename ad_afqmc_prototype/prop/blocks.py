@@ -28,7 +28,7 @@ class BlockFn(Protocol):
         meas_ctx: Any,
         prop_ops: PropOps,
         prop_ctx: Any,
-        sr_fun: SrFn = wk.stochastic_reconfiguration,
+        sr_fn: SrFn = wk.stochastic_reconfiguration,
     ) -> tuple[PropState, BlockObs]: ...
 
 
@@ -48,7 +48,7 @@ def block(
     meas_ctx: Any,
     prop_ops: PropOps,
     prop_ctx: Any,
-    sr_fun: Callable = wk.stochastic_reconfiguration,
+    sr_fn: Callable = wk.stochastic_reconfiguration,
 ) -> tuple[PropState, BlockObs]:
     """
     propagation + measurement
@@ -99,7 +99,7 @@ def block(
 
     key, subkey = jax.random.split(state.rng_key)
     zeta = jax.random.uniform(subkey)
-    w_sr, weights_sr = sr_fun(state.walkers, state.weights, zeta, sys.walker_kind)
+    w_sr, weights_sr = sr_fn(state.walkers, state.weights, zeta, sys.walker_kind)
     overlaps_sr = wk.vmap_chunked(
         meas_ops.overlap, n_chunks=params.n_chunks, in_axes=(0, None)
     )(w_sr, trial_data)
