@@ -95,7 +95,7 @@ def test_block_runs_under_sharding(n_per_dev):
     )
     sys = System(norb=norb, nelec=(nocc, nocc), walker_kind="restricted")
 
-    trial_ops = testing._dummy_trial_ops()
+    trial_ops = testing.dummy_trial_ops()
     meas_ops = _dummy_meas_ops()
     trial_data = {"rdm1": jnp.zeros((2, norb, norb), dtype=jnp.float32)}
     meas_ctx = meas_ops.build_meas_ctx(ham, trial_data)

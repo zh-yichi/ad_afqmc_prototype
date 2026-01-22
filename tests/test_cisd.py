@@ -66,7 +66,7 @@ def test_auto_force_bias_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
         ctx_manual,
         meas_auto,
         ctx_auto,
-    ) = testing._make_common_auto(
+    ) = testing.make_common_auto(
         key,
         walker_kind,
         norb,
@@ -86,7 +86,7 @@ def test_auto_force_bias_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
     fb_auto = meas_auto.require_kernel(k_force_bias)
 
     for i in range(4):
-        wi = testing._make_restricted_walker_near_ref(
+        wi = testing.make_restricted_walker_near_ref(
             jax.random.fold_in(k_w, i), norb, nocc, mix=0.25
         )
 
@@ -120,7 +120,7 @@ def test_auto_energy_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
         ctx_manual,
         meas_auto,
         ctx_auto,
-    ) = testing._make_common_auto(
+    ) = testing.make_common_auto(
         key,
         walker_kind,
         norb,
@@ -143,7 +143,7 @@ def test_auto_energy_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
     e_auto = meas_auto.require_kernel(k_energy)
 
     for i in range(4):
-        wi = testing._make_restricted_walker_near_ref(
+        wi = testing.make_restricted_walker_near_ref(
             jax.random.fold_in(k_w, i), norb, nocc, mix=0.25
         )
 

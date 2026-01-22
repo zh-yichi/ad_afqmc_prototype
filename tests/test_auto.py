@@ -15,7 +15,7 @@ from ad_afqmc_prototype.trial.rhf import RhfTrial, make_rhf_trial_ops
 from ad_afqmc_prototype import testing
 
 def _make_random_rhf_trial(key, norb, nocc):
-    return RhfTrial(mo_coeff=testing._rand_orthonormal_cols(key, norb, nocc))
+    return RhfTrial(mo_coeff=testing.rand_orthonormal_cols(key, norb, nocc))
 
 @pytest.mark.parametrize("walker_kind", ["restricted", "unrestricted", "generalized"])
 def test_auto_force_bias_matches_manual_rhf(walker_kind):
@@ -34,7 +34,7 @@ def test_auto_force_bias_matches_manual_rhf(walker_kind):
         ctx_manual,
         meas_auto,
         ctx_auto,
-    ) = testing._make_common_auto(
+    ) = testing.make_common_auto(
         key,
         walker_kind,
         norb,
@@ -53,7 +53,7 @@ def test_auto_force_bias_matches_manual_rhf(walker_kind):
     fb_auto = meas_auto.require_kernel(k_force_bias)
 
     for i in range(4):
-        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         v_m = fb_manual(wi, ham, ctx_manual, trial)
         v_a = fb_auto(wi, ham, ctx_auto, trial)
 
@@ -77,7 +77,7 @@ def test_auto_energy_matches_manual_rhf(walker_kind):
         ctx_manual,
         meas_auto,
         ctx_auto,
-    ) = testing._make_common_auto(
+    ) = testing.make_common_auto(
         key,
         walker_kind,
         norb,
@@ -96,7 +96,7 @@ def test_auto_energy_matches_manual_rhf(walker_kind):
     e_auto = meas_auto.require_kernel(k_energy)
 
     for i in range(4):
-        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         em = e_manual(wi, ham, ctx_manual, trial)
         ea = e_auto(wi, ham, ctx_auto, trial)
 

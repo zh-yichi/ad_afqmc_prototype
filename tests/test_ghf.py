@@ -16,7 +16,7 @@ from ad_afqmc_prototype import testing
 
 def _make_ghf_trial(key, norb, nup, ndn, dtype=jnp.complex128) -> GhfTrial:
     ne = nup + ndn
-    mo = testing._rand_orthonormal_cols(key, 2 * norb, ne, dtype=dtype)
+    mo = testing.rand_orthonormal_cols(key, 2 * norb, ne, dtype=dtype)
     return GhfTrial(mo_coeff=mo)
 
 @pytest.mark.parametrize(
@@ -28,26 +28,38 @@ def _make_ghf_trial(key, norb, nup, ndn, dtype=jnp.complex128) -> GhfTrial:
     ],
 )
 def test_auto_force_bias_matches_manual_ghf(walker_kind, norb, nup, ndn, n_chol):
-    sys = System(norb=norb, nelec=(nup, ndn), walker_kind=walker_kind)
-
     key = jax.random.PRNGKey(0)
-    k_ham, k_trial, k_w = jax.random.split(key, 3)
+    key, k_w = jax.random.split(key)
 
-    ham = testing._make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
-    trial = _make_ghf_trial(k_trial, norb=norb, nup=nup, ndn=ndn)
-
-    t_ops = make_ghf_trial_ops(sys)
-    meas_manual = make_ghf_meas_ops_chol(sys)
-    meas_auto = make_auto_meas_ops(sys, t_ops, eps=1.0e-4)
-
-    ctx_manual = meas_manual.build_meas_ctx(ham, trial)
-    ctx_auto = meas_auto.build_meas_ctx(ham, trial)
+    (
+        sys,
+        ham,
+        trial,
+        meas_manual,
+        ctx_manual,
+        meas_auto,
+        ctx_auto,
+    ) = testing.make_common_auto(
+        key,
+        walker_kind,
+        norb,
+        (nup, ndn),
+        n_chol,
+        make_trial_fn=_make_ghf_trial,
+        make_trial_fn_kwargs=dict(
+            norb=norb,
+            nup=nup,
+            ndn=ndn,
+        ),
+        make_trial_ops_fn=make_ghf_trial_ops,
+        make_meas_ops_fn=make_ghf_meas_ops_chol,
+    )
 
     fb_manual = meas_manual.require_kernel(k_force_bias)
     fb_auto = meas_auto.require_kernel(k_force_bias)
 
     for i in range(4):
-        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         v_m = fb_manual(wi, ham, ctx_manual, trial)
         v_a = fb_auto(wi, ham, ctx_auto, trial)
 
@@ -64,20 +76,32 @@ def test_auto_force_bias_matches_manual_ghf(walker_kind, norb, nup, ndn, n_chol)
     ],
 )
 def test_auto_energy_matches_manual_ghf(walker_kind, norb, nup, ndn, n_chol):
-    sys = System(norb=norb, nelec=(nup, ndn), walker_kind=walker_kind)
-
     key = jax.random.PRNGKey(1)
-    k_ham, k_trial, k_w = jax.random.split(key, 3)
+    key, k_w = jax.random.split(key)
 
-    ham = testing._make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
-    trial = _make_ghf_trial(k_trial, norb=norb, nup=nup, ndn=ndn)
-
-    t_ops = make_ghf_trial_ops(sys)
-    meas_manual = make_ghf_meas_ops_chol(sys)
-    meas_auto = make_auto_meas_ops(sys, t_ops, eps=1.0e-4)
-
-    ctx_manual = meas_manual.build_meas_ctx(ham, trial)
-    ctx_auto = meas_auto.build_meas_ctx(ham, trial)
+    (
+        sys,
+        ham,
+        trial,
+        meas_manual,
+        ctx_manual,
+        meas_auto,
+        ctx_auto,
+    ) = testing.make_common_auto(
+        key,
+        walker_kind,
+        norb,
+        (nup, ndn),
+        n_chol,
+        make_trial_fn=_make_ghf_trial,
+        make_trial_fn_kwargs=dict(
+            norb=norb,
+            nup=nup,
+            ndn=ndn,
+        ),
+        make_trial_ops_fn=make_ghf_trial_ops,
+        make_meas_ops_fn=make_ghf_meas_ops_chol,
+    )
 
     # Some implementations may not define energy for some walker kinds; skip in that case.
     if not meas_manual.has_kernel(k_energy):
@@ -89,7 +113,7 @@ def test_auto_energy_matches_manual_ghf(walker_kind, norb, nup, ndn, n_chol):
     e_auto = meas_auto.require_kernel(k_energy)
 
     for i in range(4):
-        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         em = e_manual(wi, ham, ctx_manual, trial)
         ea = e_auto(wi, ham, ctx_auto, trial)
 

@@ -46,7 +46,7 @@ def test_weight_update_matches_h0_prop_and_pop_control_update():
         pop_control_damping=0.1,
     )
 
-    trial_ops_ = testing._make_dummy_trial_ops()
+    trial_ops_ = testing.make_dummy_trial_ops()
     meas_ops = _make_dummy_meas_ops()
     trial_data = {"rdm1": jnp.zeros((norb, norb))}
 
@@ -97,7 +97,7 @@ def test_step_matches_manual_walker_propagation_and_is_chunk_invariant():
     params1 = QmcParams(dt=0.1, n_chunks=1, n_exp_terms=6)
     params2 = QmcParams(dt=0.1, n_chunks=3, n_exp_terms=6)
 
-    trial_ops_ = testing._make_dummy_trial_ops()
+    trial_ops_ = testing.make_dummy_trial_ops()
     meas_ops = _make_dummy_meas_ops()
     trial_data = {"rdm1": jnp.zeros((norb, norb))}
 

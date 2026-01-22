@@ -16,9 +16,9 @@ from ad_afqmc_prototype.trial.uhf import UhfTrial, make_uhf_trial_ops
 from ad_afqmc_prototype import testing
 
 def _make_uhf_trial(key, norb, nup, ndn, dtype=jnp.complex128) -> UhfTrial:
-    ca = testing._rand_orthonormal_cols(key, norb, nup, dtype=dtype)
-    key, subkey = jax.random.split(key)
-    cb = testing._rand_orthonormal_cols(subkey, norb, ndn, dtype=dtype)
+    ka, kb = jax.random.split(key)
+    ca = testing.rand_orthonormal_cols(ka, norb, nup, dtype=dtype)
+    cb = testing.rand_orthonormal_cols(kb, norb, ndn, dtype=dtype)
     return UhfTrial(mo_coeff_a=ca, mo_coeff_b=cb)
 
 @pytest.mark.parametrize(
@@ -40,7 +40,7 @@ def test_auto_force_bias_matches_manual_uhf(walker_kind, norb, nup, ndn, n_chol)
         ctx_manual,
         meas_auto,
         ctx_auto,
-    ) = testing._make_common_auto(
+    ) = testing.make_common_auto(
         key,
         walker_kind,
         norb,
@@ -60,7 +60,7 @@ def test_auto_force_bias_matches_manual_uhf(walker_kind, norb, nup, ndn, n_chol)
     fb_auto = meas_auto.require_kernel(k_force_bias)
 
     for i in range(4):
-        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         v_m = fb_manual(wi, ham, ctx_manual, trial)
         v_a = fb_auto(wi, ham, ctx_auto, trial)
 
@@ -86,7 +86,7 @@ def test_auto_energy_matches_manual_uhf(walker_kind, norb, nup, ndn, n_chol):
         ctx_manual,
         meas_auto,
         ctx_auto,
-    ) = testing._make_common_auto(
+    ) = testing.make_common_auto(
         key,
         walker_kind,
         norb,
@@ -106,7 +106,7 @@ def test_auto_energy_matches_manual_uhf(walker_kind, norb, nup, ndn, n_chol):
     e_auto = meas_auto.require_kernel(k_energy)
 
     for i in range(4):
-        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         em = e_manual(wi, ham, ctx_manual, trial)
         ea = e_auto(wi, ham, ctx_auto, trial)
 
@@ -126,7 +126,7 @@ def test_energy_equal_when_wu_eq_wd():
         ham,
         trial,
         ctx,
-    ) = testing._make_common_manual(
+    ) = testing.make_common_manual_only(
         key,
         walker_kind,
         norb,
@@ -143,7 +143,7 @@ def test_energy_equal_when_wu_eq_wd():
     )
 
     for i in range(4):
-        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         er = energy_kernel_r(wi, ham, ctx, trial)
         eu = energy_kernel_u((wi, wi), ham, ctx, trial)
 
@@ -163,7 +163,7 @@ def test_energy_equal_when_wg_eq_wu():
         ham,
         trial,
         ctx,
-    ) = testing._make_common_manual(
+    ) = testing.make_common_manual_only(
         key,
         walker_kind,
         norb,
@@ -180,7 +180,7 @@ def test_energy_equal_when_wg_eq_wu():
     )
 
     for i in range(4):
-        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         eu = energy_kernel_u(wi, ham, ctx, trial)
         wa, wb = wi
         wi = jnp.zeros((2*norb, nup+ndn), dtype=wa.dtype)

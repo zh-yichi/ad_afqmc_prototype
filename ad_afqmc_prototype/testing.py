@@ -6,7 +6,7 @@ from ad_afqmc_prototype.core.system import System
 from ad_afqmc_prototype.ham.chol import HamChol
 from ad_afqmc_prototype.meas.auto import make_auto_meas_ops
 
-def _rand_orthonormal_cols(key, nrow, ncol, dtype=jnp.complex128):
+def rand_orthonormal_cols(key, nrow, ncol, dtype=jnp.complex128):
     """
     Random (nrow, ncol) matrix with orthonormal columns via QR.
     """
@@ -17,7 +17,7 @@ def _rand_orthonormal_cols(key, nrow, ncol, dtype=jnp.complex128):
     q, _ = jnp.linalg.qr(a, mode="reduced")
     return q.astype(dtype)
 
-def _make_random_ham_chol(key, norb, n_chol, dtype=jnp.float64) -> HamChol:
+def make_random_ham_chol(key, norb, n_chol, dtype=jnp.float64) -> HamChol:
     """
     Build a small 'restricted' HamChol with:
       - symmetric real h1
@@ -35,7 +35,7 @@ def _make_random_ham_chol(key, norb, n_chol, dtype=jnp.float64) -> HamChol:
 
     return HamChol(basis="restricted", h0=h0, h1=h1, chol=chol)
 
-def _make_walkers(key, sys: System, dtype=jnp.complex128):
+def make_walkers(key, sys: System, dtype=jnp.complex128):
     """
     Build a random walker that can be either
     - restricted (norb, nocc)
@@ -46,22 +46,22 @@ def _make_walkers(key, sys: System, dtype=jnp.complex128):
     wk = sys.walker_kind.lower()
 
     if wk == "restricted":
-        w = _rand_orthonormal_cols(key, norb, na, dtype=dtype)
+        w = rand_orthonormal_cols(key, norb, na, dtype=dtype)
         return w
 
     if wk == "unrestricted":
         k1, k2 = jax.random.split(key)
-        wu = _rand_orthonormal_cols(k1, norb, na, dtype=dtype)
-        wd = _rand_orthonormal_cols(k2, norb, nb, dtype=dtype)
+        wu = rand_orthonormal_cols(k1, norb, na, dtype=dtype)
+        wd = rand_orthonormal_cols(k2, norb, nb, dtype=dtype)
         return (wu, wd)
 
     if wk == "generalized":
-        w = _rand_orthonormal_cols(key, 2 * norb, na+nb, dtype=dtype)
+        w = rand_orthonormal_cols(key, 2 * norb, na+nb, dtype=dtype)
         return w
 
     raise ValueError(f"unknown walker_kind: {sys.walker_kind}")
 
-def _make_restricted_walker_near_ref(
+def make_restricted_walker_near_ref(
     key, norb: int, nocc: int, *, mix: float = 0.2, dtype=jnp.complex128
 ) -> jax.Array:
     """
@@ -80,7 +80,7 @@ def _make_restricted_walker_near_ref(
     q, _ = jnp.linalg.qr(w, mode="reduced")
     return q.astype(dtype)
 
-def _make_dummy_trial_ops():
+def make_dummy_trial_ops():
     def get_rdm1(trial_data):
         return trial_data["rdm1"]
 
@@ -89,7 +89,7 @@ def _make_dummy_trial_ops():
 
     return TrialOps(overlap=overlap, get_rdm1=get_rdm1)
 
-def _make_common_auto(
+def make_common_auto(
     key,
     walker_kind,
     norb:int,
@@ -105,7 +105,7 @@ def _make_common_auto(
 
     k_ham, k_trial = jax.random.split(key, 2)
 
-    ham = _make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
+    ham = make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
     trial = make_trial_fn(k_trial, **make_trial_fn_kwargs)
 
     t_ops = make_trial_ops_fn(sys)
@@ -117,7 +117,7 @@ def _make_common_auto(
 
     return sys, ham, trial, meas_manual, ctx_manual, meas_auto, ctx_auto
 
-def _make_common_manual(
+def make_common_manual_only(
     key,
     walker_kind,
     norb:int,
@@ -133,7 +133,7 @@ def _make_common_manual(
 
     k_ham, k_trial = jax.random.split(key, 2)
 
-    ham = _make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
+    ham = make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
     trial = make_trial_fn(k_trial, **make_trial_fn_kwargs)
     ctx = build_meas_ctx_fn(ham, trial)
 
