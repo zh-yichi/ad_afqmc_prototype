@@ -54,22 +54,33 @@ def _make_cisd_trial(
     ],
 )
 def test_auto_force_bias_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
-    sys = System(norb=norb, nelec=(nocc, nocc), walker_kind="restricted")
-
+    walker_kind="restricted"
     key = jax.random.PRNGKey(123)
     k_ham, k_trial, k_w = jax.random.split(key, 3)
 
-    ham = testing._make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
-    trial = _make_cisd_trial(k_trial, norb=norb, nocc=nocc, memory_mode=memory_mode)
-
-    t_ops = make_cisd_trial_ops(sys)
-    meas_manual = make_cisd_meas_ops(
-        sys, memory_mode=memory_mode, mixed_precision=False, testing=True
+    (
+        sys,
+        ham,
+        trial,
+        meas_manual,
+        ctx_manual,
+        meas_auto,
+        ctx_auto,
+    ) = testing._make_common_auto(
+        key,
+        walker_kind,
+        norb,
+        (nocc, nocc),
+        n_chol,
+        make_trial_fn=_make_cisd_trial,
+        make_trial_fn_kwargs=dict(
+            norb=norb,
+            nocc=nocc,
+            memory_mode=memory_mode,
+        ),
+        make_trial_ops_fn=make_cisd_trial_ops,
+        make_meas_ops_fn=make_cisd_meas_ops,
     )
-    meas_auto = make_auto_meas_ops(sys, t_ops, eps=1.0e-4)
-
-    ctx_manual = meas_manual.build_meas_ctx(ham, trial)
-    ctx_auto = meas_auto.build_meas_ctx(ham, trial)
 
     fb_manual = meas_manual.require_kernel(k_force_bias)
     fb_auto = meas_auto.require_kernel(k_force_bias)
@@ -97,22 +108,33 @@ def test_auto_force_bias_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
     ],
 )
 def test_auto_energy_matches_manual_cisd(norb, nocc, n_chol, memory_mode):
-    sys = System(norb=norb, nelec=(nocc, nocc), walker_kind="restricted")
-
+    walker_kind="restricted"
     key = jax.random.PRNGKey(456)
-    k_ham, k_trial, k_w = jax.random.split(key, 3)
+    key, k_w = jax.random.split(key)
 
-    ham = testing._make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
-    trial = _make_cisd_trial(k_trial, norb=norb, nocc=nocc, memory_mode=memory_mode)
-
-    t_ops = make_cisd_trial_ops(sys)
-    meas_manual = make_cisd_meas_ops(
-        sys, memory_mode=memory_mode, mixed_precision=False, testing=True
+    (
+        sys,
+        ham,
+        trial,
+        meas_manual,
+        ctx_manual,
+        meas_auto,
+        ctx_auto,
+    ) = testing._make_common_auto(
+        key,
+        walker_kind,
+        norb,
+        (nocc, nocc),
+        n_chol,
+        make_trial_fn=_make_cisd_trial,
+        make_trial_fn_kwargs=dict(
+            norb=norb,
+            nocc=nocc,
+            memory_mode=memory_mode,
+        ),
+        make_trial_ops_fn=make_cisd_trial_ops,
+        make_meas_ops_fn=make_cisd_meas_ops,
     )
-    meas_auto = make_auto_meas_ops(sys, t_ops, eps=1.0e-4)
-
-    ctx_manual = meas_manual.build_meas_ctx(ham, trial)
-    ctx_auto = meas_auto.build_meas_ctx(ham, trial)
 
     if not meas_manual.has_kernel(k_energy):
         pytest.skip("manual CISD meas does not provide k_energy")

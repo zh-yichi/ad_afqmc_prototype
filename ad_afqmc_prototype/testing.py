@@ -4,6 +4,7 @@ import jax.numpy as jnp
 from ad_afqmc_prototype.core.ops import TrialOps
 from ad_afqmc_prototype.core.system import System
 from ad_afqmc_prototype.ham.chol import HamChol
+from ad_afqmc_prototype.meas.auto import make_auto_meas_ops
 
 def _rand_orthonormal_cols(key, nrow, ncol, dtype=jnp.complex128):
     """
@@ -87,3 +88,31 @@ def _make_dummy_trial_ops():
         return jnp.asarray(1.0 + 0.0j)
 
     return TrialOps(overlap=overlap, get_rdm1=get_rdm1)
+
+def _make_common_auto(
+    key,
+    walker_kind,
+    norb:int,
+    nelec: tuple[int, int],
+    n_chol: int,
+    *,
+    make_trial_fn,
+    make_trial_fn_kwargs=(),
+    make_trial_ops_fn,
+    make_meas_ops_fn,
+    ):
+    sys = System(norb=norb, nelec=nelec, walker_kind=walker_kind)
+
+    k_ham, k_trial = jax.random.split(key, 2)
+
+    ham = _make_random_ham_chol(k_ham, norb=norb, n_chol=n_chol)
+    trial = make_trial_fn(k_trial, **make_trial_fn_kwargs)
+
+    t_ops = make_trial_ops_fn(sys)
+    meas_manual = make_meas_ops_fn(sys)
+    meas_auto = make_auto_meas_ops(sys, t_ops, eps=1.0e-4)
+
+    ctx_manual = meas_manual.build_meas_ctx(ham, trial)
+    ctx_auto = meas_auto.build_meas_ctx(ham, trial)
+
+    return sys, ham, trial, meas_manual, ctx_manual, meas_auto, ctx_auto
