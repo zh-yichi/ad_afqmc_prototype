@@ -19,6 +19,77 @@ def _half_green_from_overlap_matrix(w: jax.Array, ovlp_mat: jax.Array) -> jax.Ar
     """
     return jnp.linalg.solve(ovlp_mat.T, w.T)
 
+@dataclass(frozen=True)
+class UcisdMeasCfg:
+    memory_mode: str = "low"  # or Literal["low","high"]
+    mixed_real_dtype: jnp.dtype = jnp.float64
+    mixed_complex_dtype: jnp.dtype = jnp.complex128
+    mixed_real_dtype_testing: jnp.dtype = jnp.float32
+    mixed_complex_dtype_testing: jnp.dtype = jnp.complex64
+
+@tree_util.register_pytree_node_class
+@dataclass(frozen=True)
+class UCisdMeasCtx:
+    h1_b: jax.Array  # (norb, norb)
+    chol_b: jax.Array  # (n_chol, norb, norb)
+
+    # half-rotated:
+    rot_h1_a: jax.Array  # (nocc[0], norb)
+    rot_h1_b: jax.Array  # (nocc[1], norb)
+    rot_chol_a: jax.Array  # (n_chol, nocc[0], norb)
+    rot_chol_b: jax.Array  # (n_chol, nocc[1], norb)
+    rot_chol_flat_a: jax.Array  # (n_chol, nocc[0]*norb)
+    rot_chol_flat_b: jax.Array  # (n_chol, nocc[1]*norb)
+
+    lci1_a: jax.Array  # (n_chol, norb, nocc[0])
+    lci1_b: jax.Array  # (n_chol, norb, nocc[1])
+
+    cfg: UcisdMeasCfg
+
+    def tree_flatten(self):
+        return (
+            self.h1_b,
+            self.chol_b,
+            self.rot_h1_a,
+            self.rot_h1_b,
+            self.rot_chol_a,
+            self.rot_chol_b,
+            self.rot_chol_flat_a,
+            self.rot_chol_flat_b,
+            self.lci1_a,
+            self.lci1_b,
+            self.cfg,
+        ), None
+
+    @classmethod
+    def tree_unflatten(cls, aux, children):
+        (
+            h1_b,
+            chol_b,
+            rot_h1_a,
+            rot_h1_b,
+            rot_chol_a,
+            rot_chol_b,
+            rot_chol_flat_a,
+            rot_chol_flat_b,
+            lci1_a,
+            lci1_b,
+            cfg,
+        ) = children
+        return cls(
+            h1_b=h1_b,
+            chol_b=chol_b,
+            rot_h1_a=rot_h1_a,
+            rot_h1_b=rot_h1_b,
+            rot_chol_a=rot_chol_a,
+            rot_chol_b=rot_chol_b,
+            rot_chol_flat_a=rot_chol_flat_a,
+            rot_chol_flat_b=rot_chol_flat_b,
+            lci1_a=lci1_a,
+            lci1_b=lci1_b,
+            cfg=cfg,
+        )
+
 def force_bias_kernel_u(
     walker: tuple[jax.Array, jax.Array],
     ham_data: Any,
@@ -433,77 +504,6 @@ def energy_kernel_u(
     overlap = 1.0 + overlap_1 + overlap_2
     return (e1 + e2) / overlap + e0
 
-
-@dataclass(frozen=True)
-class UcisdMeasCfg:
-    memory_mode: str = "low"  # or Literal["low","high"]
-    mixed_real_dtype: jnp.dtype = jnp.float64
-    mixed_complex_dtype: jnp.dtype = jnp.complex128
-    mixed_real_dtype_testing: jnp.dtype = jnp.float32
-    mixed_complex_dtype_testing: jnp.dtype = jnp.complex64
-
-@tree_util.register_pytree_node_class
-@dataclass(frozen=True)
-class UCisdMeasCtx:
-    h1_b: jax.Array  # (norb, norb)
-    chol_b: jax.Array  # (n_chol, norb, norb)
-
-    # half-rotated:
-    rot_h1_a: jax.Array  # (nocc[0], norb)
-    rot_h1_b: jax.Array  # (nocc[1], norb)
-    rot_chol_a: jax.Array  # (n_chol, nocc[0], norb)
-    rot_chol_b: jax.Array  # (n_chol, nocc[1], norb)
-    rot_chol_flat_a: jax.Array  # (n_chol, nocc[0]*norb)
-    rot_chol_flat_b: jax.Array  # (n_chol, nocc[1]*norb)
-
-    lci1_a: jax.Array  # (n_chol, norb, nocc[0])
-    lci1_b: jax.Array  # (n_chol, norb, nocc[1])
-
-    cfg: UcisdMeasCfg
-
-    def tree_flatten(self):
-        return (
-            self.h1_b,
-            self.chol_b,
-            self.rot_h1_a,
-            self.rot_h1_b,
-            self.rot_chol_a,
-            self.rot_chol_b,
-            self.rot_chol_flat_a,
-            self.rot_chol_flat_b,
-            self.lci1_a,
-            self.lci1_b,
-            self.cfg,
-        ), None
-
-    @classmethod
-    def tree_unflatten(cls, aux, children):
-        (
-            h1_b,
-            chol_b,
-            rot_h1_a,
-            rot_h1_b,
-            rot_chol_a,
-            rot_chol_b,
-            rot_chol_flat_a,
-            rot_chol_flat_b,
-            lci1_a,
-            lci1_b,
-            cfg,
-        ) = children
-        return cls(
-            h1_b=h1_b,
-            chol_b=chol_b,
-            rot_h1_a=rot_h1_a,
-            rot_h1_b=rot_h1_b,
-            rot_chol_a=rot_chol_a,
-            rot_chol_b=rot_chol_b,
-            rot_chol_flat_a=rot_chol_flat_a,
-            rot_chol_flat_b=rot_chol_flat_b,
-            lci1_a=lci1_a,
-            lci1_b=lci1_b,
-            cfg=cfg,
-        )
 
 def build_meas_ctx(ham_data: HamChol, trial_data: UcisdTrial) -> UcisdMeasCtx:
     if ham_data.basis != "restricted":
