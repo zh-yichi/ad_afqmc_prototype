@@ -522,6 +522,8 @@ def energy_kernel_g(
     c_a = trial_data.mo_coeff_a
     c_b = trial_data.mo_coeff_b
 
+    cfg = meas_ctx.cfg
+
     w = jnp.vstack(
         [walker[:norb], c_b.T @walker[norb:, :]]
     )  # put walker_dn in the basis of alpha reference
@@ -645,12 +647,43 @@ def energy_kernel_g(
     GpC1GCbb = jnp.einsum("qs,gqs->g", GpC1G[norb:,norb:], chol_bb, optimize="optimal")
     GpC1GC = GpC1GCaa + GpC1GCbb
 
-    Caaaa = jnp.einsum("ja,iajb->ib", green_occ[:n_oa, :n_va], c2aa, optimize="optimal")
-    Caabb = jnp.einsum("ja,iajb->ib", green_occ[n_oa:, :n_va], c2ab, optimize="optimal")
-    Cbbaa = jnp.einsum("ja,iajb->ib", green_occ[:n_oa, n_va:], jnp.einsum("iajb->jbia", c2ab), optimize="optimal")
-    Cabba = jnp.einsum("ja,iajb->ib", green_occ[n_oa:, n_va:], -jnp.einsum("iajb->ibja", c2ab), optimize="optimal")
-    Cbaab = jnp.einsum("ja,iajb->ib", green_occ[:n_oa, :n_va], -jnp.einsum("iajb->jaib", c2ab), optimize="optimal")
-    Cbbbb = jnp.einsum("ja,iajb->ib", green_occ[n_oa:, n_va:], c2bb, optimize="optimal")
+    Caaaa = jnp.einsum(
+        "ja,iajb->ib",
+        green_occ[:n_oa, :n_va],
+        c2aa,
+        optimize="optimal",
+    )
+    Caabb = jnp.einsum(
+        "ja,iajb->ib",
+        green_occ[n_oa:, :n_va],
+        c2ab,
+        optimize="optimal",
+    )
+    Cbbaa = jnp.einsum(
+        "ja,iajb->ib",
+        green_occ[:n_oa, n_va:],
+        jnp.einsum("iajb->jbia", c2ab),
+        optimize="optimal"
+    )
+    Cabba = jnp.einsum(
+        "ja,iajb->ib",
+        green_occ[n_oa:, n_va:],
+        -jnp.einsum("iajb->ibja", c2ab),
+        optimize="optimal",
+    )
+    Cbaab = jnp.einsum(
+        "ja,iajb->ib",
+        green_occ[:n_oa, :n_va],
+        -jnp.einsum("iajb->jaib", c2ab),
+        optimize="optimal",
+    )
+    Cbbbb = jnp.einsum(
+        "ja,iajb->ib",
+        green_occ[n_oa:, n_va:],
+        c2bb,
+        optimize="optimal"
+    )
+
     CGo = jnp.zeros((n_oa + n_ob, n_va + n_vb), dtype=Caaaa.dtype)
     CGo = lax.dynamic_update_slice(CGo, Caaaa+Cabba, (0, 0))
     CGo = lax.dynamic_update_slice(CGo, Caabb, (0, n_va))
@@ -790,14 +823,56 @@ def energy_kernel_g(
     #    "gpr,gqs,iajb,ir,js,pa,qb->", chol, chol, ci2, green, green, greenp, greenp
     #)
 
-    B = jnp.einsum("igp,pa->iga", GC, greenp, optimize="optimal")
+    B = jnp.einsum(
+        "igp,pa->iga",
+        GC,
+        greenp,
+        optimize="optimal",
+    ).astype(cfg.mixed_complex_dtype_testing)
 
-    Caaaa = jnp.einsum("iga,iajb->gjb", B[:n_oa, :, :n_va], c2aa, optimize="optimal")
-    Caabb = jnp.einsum("iga,iajb->gjb", B[:n_oa, :, :n_va], c2ab, optimize="optimal")
-    Cbbaa = jnp.einsum("iga,iajb->gjb", B[n_oa:, :, n_va:], jnp.einsum("iajb->jbia", c2ab), optimize="optimal")
-    Cabba = jnp.einsum("iga,iajb->gjb", B[:n_oa, :, n_va:], -jnp.einsum("iajb->ibja", c2ab), optimize="optimal")
-    Cbaab = jnp.einsum("iga,iajb->gjb", B[n_oa:, :, :n_va], -jnp.einsum("iajb->jaib", c2ab), optimize="optimal")
-    Cbbbb = jnp.einsum("iga,iajb->gjb", B[n_oa:, :, n_va:], c2bb, optimize="optimal")
+    Caaaa = jnp.einsum(
+        "iga,iajb->gjb",
+        B[:n_oa, :, :n_va],
+        c2aa.astype(cfg.mixed_complex_dtype_testing),
+        optimize="optimal",
+    )
+    Caabb = jnp.einsum(
+        "iga,iajb->gjb",
+        B[:n_oa, :, :n_va],
+        c2ab.astype(cfg.mixed_complex_dtype_testing),
+        optimize="optimal",
+    )
+    Cbbaa = jnp.einsum(
+        "iga,iajb->gjb",
+        B[n_oa:, :, n_va:],
+        jnp.einsum(
+            "iajb->jbia",
+            c2ab.astype(cfg.mixed_complex_dtype_testing)
+        ),
+        optimize="optimal",
+    )
+    Cabba = jnp.einsum(
+        "iga,iajb->gjb",
+        B[:n_oa, :, n_va:],
+        -jnp.einsum(
+            "iajb->ibja",
+            c2ab.astype(cfg.mixed_complex_dtype_testing)),
+        optimize="optimal",
+    )
+    Cbaab = jnp.einsum(
+        "iga,iajb->gjb",
+        B[n_oa:, :, :n_va],
+        -jnp.einsum(
+            "iajb->jaib",
+            c2ab.astype(cfg.mixed_complex_dtype_testing)),
+        optimize="optimal",
+    )
+    Cbbbb = jnp.einsum(
+        "iga,iajb->gjb",
+        B[n_oa:, :, n_va:],
+        c2bb.astype(cfg.mixed_complex_dtype_testing),
+        optimize="optimal",
+    )
 
     C = jnp.zeros((nchol, n_oa+n_ob, n_va+n_vb), dtype=Caaaa.dtype)
     C = lax.dynamic_update_slice(C, Caaaa+Cbbaa, (0, 0, 0))
