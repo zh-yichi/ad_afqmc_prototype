@@ -13,22 +13,8 @@ from ..ham.chol import HamChol, slice_ham_level
 from ..trial.cis import CisTrial
 from ..trial.cis import overlap_r
 from . import cisd
-from cisd import CisdMeasCtx
-
-def _greens_restricted(walker: jax.Array, nocc: int) -> jax.Array:
-    wocc = walker[:nocc, :]  # (nocc, nocc)
-    return jnp.linalg.solve(wocc.T, walker.T)  # (nocc, norb)
-
-
-def _greenp_from_green(green: jax.Array) -> jax.Array:
-    """
-    green_occ = green[:, nocc:]
-    greenp = vstack([green_occ, -I(nvir)])   shape (norb, nvir)
-    """
-    nocc = green.shape[0]
-    nvir = green.shape[1] - nocc
-    green_occ = green[:, nocc:]
-    return jnp.vstack((green_occ, -jnp.eye(nvir, dtype=green.dtype)))
+from .cisd import CisdMeasCtx
+from .cisd import _greens_restricted
 
 
 def force_bias_kernel_r(
