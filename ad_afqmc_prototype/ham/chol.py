@@ -45,9 +45,10 @@ class HamChol:
         basis = aux
         return cls(h0=h0, h1=h1, chol=chol, basis=basis)
 
+
 @tree_util.register_pytree_node_class
 @dataclass(frozen=True)
-class uHamChol:
+class HamCholU:
     """
     unrestricted cholesky hamiltonian.
     the number of alpha and beta orbital can be different
@@ -80,16 +81,16 @@ class uHamChol:
         return cls(h0=h0, h1=h1, chol=chol, basis=basis)
 
 
-def n_fields(ham: Union[HamChol, uHamChol]) -> int:
+def n_fields(ham: Union[HamChol, HamCholU]) -> int:
     return int(ham.chol.shape[-3])
 
 
 def slice_ham_level(
-    ham: Union[HamChol, uHamChol], 
+    ham: Union[HamChol, HamCholU], 
     *, 
     norb_keep: Union[int,Tuple] | None, 
     nchol_keep: int | None
-    ) -> Union[HamChol, uHamChol]:
+    ) -> Union[HamChol, HamCholU]:
     """
     Build a HamChol view for measurement in MLMC:
       - slice orbitals as a prefix [:norb_keep]
@@ -119,4 +120,4 @@ def slice_ham_level(
         if nchol_keep is not None:
             chol = chol[:,:nchol_keep,:,:]
 
-        return uHamChol(h0=h0, h1=h1, chol=chol, basis=ham.basis)
+        return HamCholU(h0=h0, h1=h1, chol=chol, basis=ham.basis)
