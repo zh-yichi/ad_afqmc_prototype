@@ -106,46 +106,46 @@ def test_auto_energy_matches_manual_rhf(walker_kind):
         assert jnp.allclose(ear, emr, rtol=5e-3, atol=5e-4), (ear, emr)
 
 
-#def test_auto_force_bias_matches_manual_rhf_generalized():
-#    walker_kind = "generalized"
-#    norb = 5
-#    nocc = 2
-#    n_chol = 7
-#
-#    key = jax.random.PRNGKey(2)
-#    key, k_w = jax.random.split(key)
-#
-#    (
-#        sys,
-#        ham,
-#        trial,
-#        meas_manual,
-#        ctx_manual,
-#        meas_auto,
-#        ctx_auto,
-#    ) = testing._make_common_auto(
-#        key,
-#        walker_kind,
-#        norb,
-#        (nocc, nocc),
-#        n_chol,
-#        make_trial_fn=_make_random_rhf_trial,
-#        make_trial_fn_kwargs=dict(
-#            norb=norb,
-#            nocc=nocc,
-#        ),
-#        make_trial_ops_fn=make_rhf_trial_ops,
-#        make_meas_ops_fn=make_rhf_meas_ops,
-#    )
-#
-#    fb_manual = meas_manual.require_kernel(k_force_bias)
-#    fb_auto = meas_auto.require_kernel(k_force_bias)
-#
-#    for i in range(4):
-#        wi = testing._make_walkers(jax.random.fold_in(k_w, i), sys)
-#        v_m = fb_manual(wi, ham, ctx_manual, trial)
-#        v_a = fb_auto(wi, ham, ctx_auto, trial)
-#        assert jnp.allclose(v_a, v_m, rtol=1e-7, atol=1e-8), (v_a, v_m)
+def test_auto_force_bias_matches_manual_rhf_generalized():
+    walker_kind = "generalized"
+    norb = 5
+    nocc = 2
+    n_chol = 7
+
+    key = jax.random.PRNGKey(2)
+    key, k_w = jax.random.split(key)
+
+    (
+        sys,
+        ham,
+        trial,
+        meas_manual,
+        ctx_manual,
+        meas_auto,
+        ctx_auto,
+    ) = testing.make_common_auto(
+        key,
+        walker_kind,
+        norb,
+        (nocc, nocc),
+        n_chol,
+        make_trial_fn=_make_random_rhf_trial,
+        make_trial_fn_kwargs=dict(
+            norb=norb,
+            nocc=nocc,
+        ),
+        make_trial_ops_fn=make_rhf_trial_ops,
+        make_meas_ops_fn=make_rhf_meas_ops,
+    )
+
+    fb_manual = meas_manual.require_kernel(k_force_bias)
+    fb_auto = meas_auto.require_kernel(k_force_bias)
+
+    for i in range(4):
+        wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
+        v_m = fb_manual(wi, ham, ctx_manual, trial)
+        v_a = fb_auto(wi, ham, ctx_auto, trial)
+        assert jnp.allclose(v_a, v_m, rtol=1e-7, atol=1e-8), (v_a, v_m)
 
 
 if __name__ == "__main__":

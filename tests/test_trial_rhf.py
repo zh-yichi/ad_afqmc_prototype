@@ -9,10 +9,10 @@ from ad_afqmc_prototype.core.system import System
 from ad_afqmc_prototype.ham.chol import HamChol
 from ad_afqmc_prototype.meas.rhf import (
     build_meas_ctx,
-    energy_kernel_r,
-    energy_kernel_u,
-    force_bias_kernel_r,
-    force_bias_kernel_u,
+    energy_kernel_rw_rh,
+    energy_kernel_uw_rh,
+    force_bias_kernel_rw_rh,
+    force_bias_kernel_uw_rh,
     make_rhf_meas_ops,
 )
 from ad_afqmc_prototype.trial.rhf import RhfTrial
@@ -58,7 +58,7 @@ def test_force_bias_matches_reference_restricted():
     A = jnp.array([[1.2 + 0.1j, -0.2 + 0.3j], [0.4 - 0.1j, 0.9 + 0.0j]], dtype=c.dtype)
     w = c @ A  # (norb, nocc)
 
-    fb = force_bias_kernel_r(w, None, ctx, tr)
+    fb = force_bias_kernel_rw_rh(w, None, ctx, tr)
 
     m = tr.mo_coeff.conj().T @ w
     g_half = jnp.linalg.solve(m.T, w.T)
@@ -80,8 +80,8 @@ def test_force_bias_unrestricted_equals_restricted_when_wu_eq_wd():
     A = A + 1.5 * jnp.eye(nocc, dtype=A.dtype)
 
     w = c @ A
-    fb_r = force_bias_kernel_r(w, None, ctx, tr)
-    fb_u = force_bias_kernel_u((w, w), None, ctx, tr)
+    fb_r = force_bias_kernel_rw_rh(w, None, ctx, tr)
+    fb_u = force_bias_kernel_uw_rh((w, w), None, ctx, tr)
     assert jnp.allclose(fb_u, fb_r)
 
 
@@ -103,9 +103,8 @@ def test_energy_is_h0_when_h1_and_chol_zero_restricted_and_unrestricted():
     A = jnp.eye(nocc, dtype=c.dtype) * (1.1 + 0.2j)
     w = c @ A
 
-    e_r = energy_kernel_r(w, ham, ctx, tr)
-    e_u = energy_kernel_u((w, w), ham, ctx, tr)
-
+    e_r = energy_kernel_rw_rh(w, ham, ctx, tr)
+    e_u = energy_kernel_uw_rh((w, w), ham, ctx, tr)
     assert jnp.allclose(e_r, ham.h0)
     assert jnp.allclose(e_u, ham.h0)
 

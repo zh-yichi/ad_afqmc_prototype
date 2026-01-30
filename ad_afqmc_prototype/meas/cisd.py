@@ -146,7 +146,7 @@ def make_level_pack(
     )
 
 
-def force_bias_kernel_r(
+def force_bias_kernel_rw_rh(
     walker: jax.Array, ham_data: HamChol, meas_ctx: CisdMeasCtx, trial_data: CisdTrial
 ) -> jax.Array:
     ci1, ci2 = trial_data.ci1, trial_data.ci2
@@ -210,7 +210,7 @@ def force_bias_kernel_r(
     return (fb_0 + fb_1 + fb_2) / overlap
 
 
-def energy_kernel_r(
+def energy_kernel_rw_rh(
     walker: jax.Array, ham_data: HamChol, meas_ctx: CisdMeasCtx, trial_data: CisdTrial
 ) -> jax.Array:
     ci1, ci2 = trial_data.ci1, trial_data.ci2
@@ -405,5 +405,5 @@ def make_cisd_meas_ops(
         build_meas_ctx=lambda ham_data, trial_data: build_meas_ctx(
             ham_data, trial_data, cfg
         ),
-        kernels={k_force_bias: force_bias_kernel_r, k_energy: energy_kernel_r},
+        kernels={k_force_bias: force_bias_kernel_rw_rh, k_energy: energy_kernel_rw_rh},
     )

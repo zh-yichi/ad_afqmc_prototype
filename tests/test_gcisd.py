@@ -14,8 +14,8 @@ from ad_afqmc_prototype.core.system import System
 from ad_afqmc_prototype.ham.chol import HamChol
 from ad_afqmc_prototype.meas.auto import make_auto_meas_ops
 from ad_afqmc_prototype.meas.gcisd import make_gcisd_meas_ops, build_meas_ctx
-from ad_afqmc_prototype.meas.gcisd import energy_kernel_g
-from ad_afqmc_prototype.meas.gcisd import force_bias_kernel_g
+from ad_afqmc_prototype.meas.gcisd import energy_kernel_gw_gh
+from ad_afqmc_prototype.meas.gcisd import force_bias_kernel_gw_gh
 from ad_afqmc_prototype.trial.gcisd import GcisdTrial, make_gcisd_trial_ops
 from ad_afqmc_prototype import testing
 

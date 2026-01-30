@@ -125,7 +125,7 @@ class UcisdMeasCtx:
         )
 
 
-def force_bias_kernel_r(
+def force_bias_kernel_rw_rh(
     walker: jax.Array,
     ham_data: HamChol,
     meas_ctx: UcisdMeasCtx,
@@ -133,10 +133,10 @@ def force_bias_kernel_r(
 ) -> jax.Array:
     """Calculates force bias < psi_T | chol_gamma | walker > / < psi_T | walker >"""
     assert trial_data.nocc[0] == trial_data.nocc[1]
-    return force_bias_kernel_u((walker, walker), ham_data, meas_ctx, trial_data) 
+    return force_bias_kernel_uw_rh((walker, walker), ham_data, meas_ctx, trial_data) 
 
 
-def force_bias_kernel_u(
+def force_bias_kernel_uw_rh(
     walker: tuple[jax.Array, jax.Array],
     ham_data: HamChol,
     meas_ctx: UcisdMeasCtx,
@@ -250,7 +250,7 @@ def force_bias_kernel_u(
 
     return (fb_0 + fb_1 + fb_2) / overlap
 
-def force_bias_kernel_g(
+def force_bias_kernel_gw_rh(
     walker: jax.Array,
     ham_data: HamChol,
     meas_ctx: UcisdMeasCtx,
@@ -381,17 +381,17 @@ def force_bias_kernel_g(
     return nu
 
 
-def energy_kernel_r(
+def energy_kernel_rw_rh(
     walker: jax.Array,
     ham_data: HamChol,
     meas_ctx: UcisdMeasCtx,
     trial_data: UcisdTrial,
 ) -> jax.Array:
     assert trial_data.nocc[0] == trial_data.nocc[1]
-    return energy_kernel_u((walker, walker), ham_data, meas_ctx, trial_data)
+    return energy_kernel_uw_rh((walker, walker), ham_data, meas_ctx, trial_data)
 
 
-def energy_kernel_u(
+def energy_kernel_uw_rh(
     walker: tuple[jax.Array, jax.Array],
     ham_data: HamChol,
     meas_ctx: UcisdMeasCtx,
@@ -694,7 +694,7 @@ def energy_kernel_u(
     overlap = 1.0 + overlap_1 + overlap_2
     return (e1 + e2) / overlap + e0
 
-def energy_kernel_g(
+def energy_kernel_gw_rh(
     walker: jax.Array,
     ham_data: HamChol,
     meas_ctx: UcisdMeasCtx,
@@ -1248,21 +1248,21 @@ def make_ucisd_meas_ops(sys: System) -> MeasOps:
         return MeasOps(
             overlap=overlap_r,
             build_meas_ctx=build_meas_ctx,
-            kernels={k_force_bias: force_bias_kernel_r, k_energy: energy_kernel_r},
+            kernels={k_force_bias: force_bias_kernel_rw_rh, k_energy: energy_kernel_rw_rh},
         )
 
     if wk == "unrestricted":
         return MeasOps(
             overlap=overlap_u,
             build_meas_ctx=build_meas_ctx,
-            kernels={k_force_bias: force_bias_kernel_u, k_energy: energy_kernel_u},
+            kernels={k_force_bias: force_bias_kernel_uw_rh, k_energy: energy_kernel_uw_rh},
         )
 
     if wk == "generalized":
         return MeasOps(
             overlap=overlap_g,
             build_meas_ctx=build_meas_ctx,
-            kernels={k_force_bias: force_bias_kernel_g, k_energy: energy_kernel_g},
+            kernels={k_force_bias: force_bias_kernel_gw_rh, k_energy: energy_kernel_gw_rh},
         )
 
     raise ValueError(f"unknown walker_kind: {sys.walker_kind}")

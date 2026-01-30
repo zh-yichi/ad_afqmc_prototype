@@ -98,7 +98,7 @@ def _force_bias_from_overlap_array(
     return grad_x / val
 
 
-def force_bias_kernel_r(
+def force_bias_kernel_rw_rh(
     w: jax.Array,
     ham_data: HamChol,
     _meas_ctx: AutoMeasCtx,
@@ -109,7 +109,7 @@ def force_bias_kernel_r(
     return _force_bias_from_overlap_array(w, ham_data, overlap, trial_data)
 
 
-def force_bias_kernel_g(
+def force_bias_kernel_gw_rh(
     w: jax.Array,
     ham_data: HamChol,
     _meas_ctx: AutoMeasCtx,
@@ -120,7 +120,7 @@ def force_bias_kernel_g(
     return _force_bias_from_overlap_array(w, ham_data, overlap, trial_data)
 
 
-def force_bias_kernel_u(
+def force_bias_kernel_uw_rh(
     w: tuple[jax.Array, jax.Array],
     ham_data: HamChol,
     _meas_ctx: AutoMeasCtx,
@@ -191,7 +191,7 @@ def _energy_from_overlap_array(
     return (d_ovlp + 0.5 * d2_sum) / ovlp0 + h0
 
 
-def energy_kernel_r(
+def energy_kernel_rw_rh(
     w: jax.Array,
     ham_data: HamChol,
     meas_ctx: AutoMeasCtx,
@@ -202,7 +202,7 @@ def energy_kernel_r(
     return _energy_from_overlap_array(w, ham_data, meas_ctx, overlap, trial_data)
 
 
-def energy_kernel_g(
+def energy_kernel_gw_rh(
     w: jax.Array,
     ham_data: HamChol,
     meas_ctx: AutoMeasCtx,
@@ -213,7 +213,7 @@ def energy_kernel_g(
     return _energy_from_overlap_array(w, ham_data, meas_ctx, overlap, trial_data)
 
 
-def energy_kernel_u(
+def energy_kernel_uw_rh(
     w: tuple[jax.Array, jax.Array],
     ham_data: HamChol,
     meas_ctx: AutoMeasCtx,
@@ -278,10 +278,10 @@ def make_auto_meas_ops(
         return build_meas_ctx(ham_data, trial_data, eps=eps)
 
     if wk == "restricted":
-        fb = lambda walker, ham_data, meas_ctx, trial_data: force_bias_kernel_r(
+        fb = lambda walker, ham_data, meas_ctx, trial_data: force_bias_kernel_rw_rh(
             walker, ham_data, meas_ctx, trial_data, overlap=overlap
         )
-        ene = lambda walker, ham_data, meas_ctx, trial_data: energy_kernel_r(
+        ene = lambda walker, ham_data, meas_ctx, trial_data: energy_kernel_rw_rh(
             walker, ham_data, meas_ctx, trial_data, overlap=overlap
         )
         return MeasOps(
@@ -291,10 +291,10 @@ def make_auto_meas_ops(
         )
 
     if wk == "unrestricted":
-        fb = lambda walker, ham_data, meas_ctx, trial_data: force_bias_kernel_u(
+        fb = lambda walker, ham_data, meas_ctx, trial_data: force_bias_kernel_uw_rh(
             walker, ham_data, meas_ctx, trial_data, overlap=overlap
         )
-        ene = lambda walker, ham_data, meas_ctx, trial_data: energy_kernel_u(
+        ene = lambda walker, ham_data, meas_ctx, trial_data: energy_kernel_uw_rh(
             walker, ham_data, meas_ctx, trial_data, overlap=overlap
         )
         return MeasOps(
@@ -307,10 +307,10 @@ def make_auto_meas_ops(
         )
 
     if wk == "generalized":
-        fb = lambda walker, ham_data, meas_ctx, trial_data: force_bias_kernel_g(
+        fb = lambda walker, ham_data, meas_ctx, trial_data: force_bias_kernel_gw_rh(
             walker, ham_data, meas_ctx, trial_data, overlap=overlap
         )
-        ene = lambda walker, ham_data, meas_ctx, trial_data: energy_kernel_g(
+        ene = lambda walker, ham_data, meas_ctx, trial_data: energy_kernel_gw_rh(
             walker, ham_data, meas_ctx, trial_data, overlap=overlap
         )
         return MeasOps(

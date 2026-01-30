@@ -20,7 +20,7 @@ def _half_green_from_overlap_matrix(w: jax.Array, ovlp_mat: jax.Array) -> jax.Ar
     return jnp.linalg.solve(ovlp_mat.T, w.T)
 
 
-def force_bias_kernel_r(
+def force_bias_kernel_rw_rh(
     walker: jax.Array, ham_data: Any, meas_ctx: RhfMeasCtx, trial_data: RhfTrial
 ) -> jax.Array:
     m = trial_data.mo_coeff.conj().T @ walker
@@ -29,7 +29,7 @@ def force_bias_kernel_r(
     return 2.0 * (meas_ctx.rot_chol_flat @ g_half.reshape(-1))
 
 
-def energy_kernel_r(
+def energy_kernel_rw_rh(
     walker: jax.Array, ham_data: HamChol, meas_ctx: RhfMeasCtx, trial_data: RhfTrial
 ) -> jax.Array:
     m = trial_data.mo_coeff.conj().T @ walker
@@ -46,7 +46,7 @@ def energy_kernel_r(
     return e0 + e1 + e2
 
 
-def force_bias_kernel_u(
+def force_bias_kernel_uw_rh(
     walker: tuple[jax.Array, jax.Array],
     ham_data: Any,
     meas_ctx: RhfMeasCtx,
@@ -61,7 +61,7 @@ def force_bias_kernel_u(
     return meas_ctx.rot_chol_flat @ g.reshape(-1)
 
 
-def energy_kernel_u(
+def energy_kernel_uw_rh(
     walker: tuple[jax.Array, jax.Array],
     ham_data: HamChol,
     meas_ctx: RhfMeasCtx,
@@ -94,7 +94,7 @@ def energy_kernel_u(
     return e0 + e1 + e2
 
 
-def force_bias_kernel_g(
+def force_bias_kernel_gw_rh(
     walker: jax.Array, ham_data: Any, meas_ctx: RhfMeasCtx, trial_data: RhfTrial
 ) -> jax.Array:
     norb, nocc = trial_data.norb, trial_data.nocc
@@ -147,21 +147,27 @@ def make_rhf_meas_ops(sys: System) -> MeasOps:
         return MeasOps(
             overlap=overlap_r,
             build_meas_ctx=build_meas_ctx,
-            kernels={k_force_bias: force_bias_kernel_r, k_energy: energy_kernel_r},
+            kernels={
+                k_force_bias: force_bias_kernel_rw_rh,
+                k_energy: energy_kernel_rw_rh,
+            },
         )
 
     if wk == "unrestricted":
         return MeasOps(
             overlap=overlap_u,
             build_meas_ctx=build_meas_ctx,
-            kernels={k_force_bias: force_bias_kernel_u, k_energy: energy_kernel_u},
+            kernels={
+                k_force_bias: force_bias_kernel_uw_rh,
+                k_energy: energy_kernel_uw_rh,
+            },
         )
 
     if wk == "generalized":
         return MeasOps(
             overlap=overlap_g,
             build_meas_ctx=build_meas_ctx,
-            kernels={k_force_bias: force_bias_kernel_g},
+            kernels={k_force_bias: force_bias_kernel_gw_rh},
         )
 
     raise ValueError(f"unknown walker_kind: {sys.walker_kind}")

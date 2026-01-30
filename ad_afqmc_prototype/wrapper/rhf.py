@@ -1,16 +1,16 @@
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
 
-from .. import driver, config
-from ..prep import integrals
+from .. import config, driver
 from ..core.system import System
 from ..ham.chol import HamChol
 from ..meas.rhf import make_rhf_meas_ops
+from ..prep.pyscf_interface import get_integrals, get_trial_coeff
 from ..prop.afqmc import make_prop_ops
 from ..prop.blocks import block
 from ..prop.types import QmcParams
 from ..trial.rhf import RhfTrial, make_rhf_trial_ops
-from ..prep.pyscf_interface import get_integrals, get_trial_coeff
+
 
 class Rhf:
     def __init__(self, mf):
@@ -22,8 +22,8 @@ class Rhf:
         sys = System(norb=mol.nao, nelec=mol.nelec, walker_kind="restricted")
         ham_data = HamChol(h0, h1, chol)
 
-        mo = get_trial_coeff(mf)
-        mo = mo[:,:sys.nup]
+        mo = jnp.array(get_trial_coeff(mf))
+        mo = mo[:, : sys.nup]
         self.trial_data = RhfTrial(mo)
         self.trial_ops = make_rhf_trial_ops(sys=sys)
         self.meas_ops = make_rhf_meas_ops(sys=sys)

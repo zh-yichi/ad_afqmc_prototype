@@ -48,7 +48,7 @@ class GcisdMeasCtx:
         )
 
 
-def force_bias_kernel_g(
+def force_bias_kernel_gw_gh(
     walker: jax.Array,
     ham_data: HamChol,
     meas_ctx: GcisdMeasCtx,
@@ -100,7 +100,7 @@ def force_bias_kernel_g(
     nu = nu / overlap
     return nu
 
-def energy_kernel_g(
+def energy_kernel_gw_gh(
     walker: jax.Array,
     ham_data: HamChol,
     meas_ctx: GcisdMeasCtx,
@@ -340,7 +340,7 @@ def make_gcisd_meas_ops(sys: System) -> MeasOps:
         return MeasOps(
             overlap=overlap_g,
             build_meas_ctx=build_meas_ctx,
-            kernels={k_force_bias: force_bias_kernel_g, k_energy: energy_kernel_g},
+            kernels={k_force_bias: force_bias_kernel_gw_gh, k_energy: energy_kernel_gw_gh},
         )
 
     raise ValueError(f"unknown walker_kind: {sys.walker_kind}")

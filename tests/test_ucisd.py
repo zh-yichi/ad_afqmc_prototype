@@ -14,8 +14,8 @@ from ad_afqmc_prototype.core.system import System
 from ad_afqmc_prototype.ham.chol import HamChol
 from ad_afqmc_prototype.meas.auto import make_auto_meas_ops
 from ad_afqmc_prototype.meas.ucisd import make_ucisd_meas_ops, build_meas_ctx
-from ad_afqmc_prototype.meas.ucisd import energy_kernel_r, energy_kernel_u, energy_kernel_g
-from ad_afqmc_prototype.meas.ucisd import force_bias_kernel_r, force_bias_kernel_u, force_bias_kernel_g
+from ad_afqmc_prototype.meas.ucisd import energy_kernel_rw_rh, energy_kernel_uw_rh, energy_kernel_gw_rh
+from ad_afqmc_prototype.meas.ucisd import force_bias_kernel_rw_rh, force_bias_kernel_uw_rh, force_bias_kernel_gw_rh
 from ad_afqmc_prototype.trial.ucisd import UcisdTrial, make_ucisd_trial_ops
 from ad_afqmc_prototype import testing
 
@@ -199,8 +199,8 @@ def test_force_bias_equal_when_wr_eq_wu():
         wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         wa, wb = wi
         wi = (wa, wa)
-        fbu = force_bias_kernel_u(wi, ham, ctx, trial)
-        fbr = force_bias_kernel_r(wa, ham, ctx, trial)
+        fbu = force_bias_kernel_uw_rh(wi, ham, ctx, trial)
+        fbr = force_bias_kernel_rw_rh(wa, ham, ctx, trial)
 
         assert jnp.allclose(fbu, fbr, atol=1e-12), (fbu, fbr)
 
@@ -236,12 +236,12 @@ def test_force_bias_equal_when_wg_eq_wu():
 
     for i in range(4):
         wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
-        fbu = force_bias_kernel_u(wi, ham, ctx, trial)
+        fbu = force_bias_kernel_uw_rh(wi, ham, ctx, trial)
         wa, wb = wi
         wi = jnp.zeros((2*norb, nup+ndn), dtype=wa.dtype)
         wi = lax.dynamic_update_slice(wi, wa, (0,0))
         wi = lax.dynamic_update_slice(wi, wb, (norb,nup))
-        fbg = force_bias_kernel_g(wi, ham, ctx, trial)
+        fbg = force_bias_kernel_gw_rh(wi, ham, ctx, trial)
 
         assert jnp.allclose(fbu, fbg, atol=1e-12), (fbu, fbg)
 
@@ -279,8 +279,8 @@ def test_energy_equal_when_wr_eq_wu():
         wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
         wa, wb = wi
         wi = (wa, wa)
-        eu = energy_kernel_u(wi, ham, ctx, trial)
-        er = energy_kernel_r(wa, ham, ctx, trial)
+        eu = energy_kernel_uw_rh(wi, ham, ctx, trial)
+        er = energy_kernel_rw_rh(wa, ham, ctx, trial)
 
         assert jnp.allclose(eu, er, atol=1e-12), (eu, er)
 
@@ -316,12 +316,12 @@ def test_energy_equal_when_wg_eq_wu():
 
     for i in range(4):
         wi = testing.make_walkers(jax.random.fold_in(k_w, i), sys)
-        eu = energy_kernel_u(wi, ham, ctx, trial)
+        eu = energy_kernel_uw_rh(wi, ham, ctx, trial)
         wa, wb = wi
         wi = jnp.zeros((2*norb, nup+ndn), dtype=wa.dtype)
         wi = lax.dynamic_update_slice(wi, wa, (0,0))
         wi = lax.dynamic_update_slice(wi, wb, (norb,nup))
-        eg = energy_kernel_g(wi, ham, ctx, trial)
+        eg = energy_kernel_gw_rh(wi, ham, ctx, trial)
 
         assert jnp.allclose(eu, eg, atol=1e-12), (eu, eg)
 

@@ -17,7 +17,7 @@ from .cisd import CisdMeasCtx
 from .cisd import _greens_restricted
 
 
-def force_bias_kernel_r(
+def force_bias_kernel_rw_rh(
     walker: jax.Array, ham_data: HamChol, meas_ctx: CisdMeasCtx, trial_data: EomCisdTrial
 ) -> jax.Array:
     c1 = trial_data.ci1
@@ -123,7 +123,7 @@ def force_bias_kernel_r(
     fb = (fb_r1 + fb_r1c1 + fb_r2 + fb_r2c1 + fb_r1c2) / overlap
     return fb
 
-def energy_kernel_r(
+def energy_kernel_rw_rh(
     walker: jax.Array, ham_data: HamChol, meas_ctx: CisdMeasCtx, trial_data: EomCisdTrial
 ) -> jax.Array:
     c1 = trial_data.ci1
@@ -455,6 +455,6 @@ def make_eom_t_cisd_meas_ops(
         build_meas_ctx=lambda ham_data, trial_data: cisd.build_meas_ctx(
             ham_data, trial_data, cfg
         ),
-        kernels={k_force_bias: force_bias_kernel_r, k_energy: energy_kernel_r},
+        kernels={k_force_bias: force_bias_kernel_rw_rh, k_energy: energy_kernel_rw_rh},
     )
 
