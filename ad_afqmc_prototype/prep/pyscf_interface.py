@@ -58,6 +58,30 @@ def get_integrals(mf):
 
     return h0, h1, chol
 
+
+def get_integrals_unrestricted(mf, chol_cut=1e-6):
+    if not isinstance(mf, UHF):
+        raise TypeError(f"Expected UHF, but found {type(mf)}.")
+    if not hasattr(mf, "mo_coeff"):
+        raise ValueError(f"mo_coeff not found, you may not have run the scf kernel.")
+
+    mol = mf.mol
+    h0 = jnp.array(mf.energy_nuc())
+
+    mo = mf.mo_coeff
+    h1 = mf.get_hcore()
+    h1[0] = np.array(mo[0].T.conj() @ h1[0] @ mo[0])
+    h1[1] = np.array(mo[1].T.conj() @ h1[1] @ mo[1])
+
+    print("Calculating Cholesky integrals")
+    chol = integrals.chunked_cholesky(mol, max_error=chol_cut)  
+    chola = jnp.einsum('pr,grs,sq->gpq', mo[0].T.conj(), chol, mo[0], optimize="optimal")
+    cholb = jnp.einsum('pr,grs,sq->gpq', mo[1].T.conj(), chol, mo[1], optimize="optimal")
+    chol = [chola, cholb]
+
+    return h0, h1, chol
+
+
 def get_trial_coeff(mf):
     if not isinstance(mf, (RHF, ROHF, UHF, GHF)):
         raise TypeError(f"Expected RHF, ROHF, UHF, or GHF but found {type(mf)}.")
